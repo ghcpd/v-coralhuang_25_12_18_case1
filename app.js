@@ -1,4 +1,4 @@
-// Baseline demo: all operations are local (no loading / error UI, no inline updates)
+// Enhanced Task Management Dashboard
 
 function pad(n, len) {
   const s = String(n);
@@ -32,10 +32,45 @@ function seededTasks() {
   return tasks;
 }
 
-// "Mock API" (delay only)
+// Mock API with configurable delay and error simulation
 async function listTasks() {
-  await new Promise((r) => setTimeout(r, 80));
+  // Simulate random failures (5% chance)
+  if (Math.random() < 0.05) {
+    throw new Error("Failed to load tasks. Please try again.");
+  }
+
+  await new Promise((r) => setTimeout(r, 500 + Math.random() * 500)); // 500-1000ms delay
   return seededTasks();
+}
+
+// Mock status update API
+async function updateTaskStatus(taskId, newStatus) {
+  // Simulate random failures (10% chance)
+  if (Math.random() < 0.1) {
+    throw new Error("Failed to update task status. Please try again.");
+  }
+
+  await new Promise((r) => setTimeout(r, 300 + Math.random() * 700)); // 300-1000ms delay
+
+  // Simulate server-side validation
+  const validTransitions = {
+    TODO: ["IN_PROGRESS"],
+    IN_PROGRESS: ["DONE"],
+    DONE: [] // No further transitions
+  };
+
+  const task = state.all.find(t => t.id === taskId);
+  if (!task) {
+    throw new Error("Task not found.");
+  }
+
+  if (!validTransitions[task.status].includes(newStatus)) {
+    throw new Error(`Invalid status transition from ${task.status} to ${newStatus}.`);
+  }
+
+  // Update the task
+  task.status = newStatus;
+  return task;
 }
 
 // State
@@ -44,27 +79,57 @@ const state = {
   q: "",
   status: "ALL",
   sortKey: null,
-  sortDir: null, // "asc" | "desc" | null
+  sortDir: null,
   page: 1,
-  pageSize: 10
+  pageSize: 10,
+  loading: false,
+  error: null,
+  updatingTasks: new Set(), // Track tasks being updated
+  recentlyUpdated: new Set() // Track recently updated tasks
 };
 
 // Elements
 const elQ = document.getElementById("q");
 const elStatus = document.getElementById("status");
 const elReset = document.getElementById("reset");
+const elResetEmpty = document.getElementById("reset-empty");
 const elTbody = document.getElementById("tbody");
 const elSummary = document.getElementById("summary");
 const elPageSize = document.getElementById("pageSize");
 const elPrev = document.getElementById("prev");
 const elNext = document.getElementById("next");
 const elPageInfo = document.getElementById("pageInfo");
+const elLoadingOverlay = document.getElementById("loading-overlay");
+const elErrorContainer = document.getElementById("error-container");
+const elEmptyState = document.getElementById("empty-state");
 
 const elBackdrop = document.getElementById("backdrop");
 const elClose = document.getElementById("close");
 const elModalBody = document.getElementById("modalBody");
 
-// Derived
+// Status transition map
+const statusTransitions = {
+  TODO: "IN_PROGRESS",
+  IN_PROGRESS: "DONE",
+  DONE: null
+};
+
+function getStatusBadgeClass(status) {
+  switch (status) {
+    case "TODO": return "status-todo";
+    case "IN_PROGRESS": return "status-in-progress";
+    case "DONE": return "status-done";
+    default: return "";
+  }
+}
+
+function highlightSearchTerms(text, query) {
+  if (!query.trim()) return text;
+
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+}
+
 function applyQueryFilterSort() {
   let out = [...state.all];
 
@@ -97,34 +162,124 @@ function render() {
   const start = (state.page - 1) * state.pageSize;
   const pageItems = full.slice(start, start + state.pageSize);
 
-  elSummary.textContent = `${total} items`;
+  elSummary.textContent = `${total} item${total !== 1 ? 's' : ''}`;
+
+  // Update sort indicators
+  document.querySelectorAll("th[data-key]").forEach(th => {
+    th.classList.remove("sort-asc", "sort-desc");
+    const key = th.getAttribute("data-key");
+    if (state.sortKey === key) {
+      th.classList.add(state.sortDir === "asc" ? "sort-asc" : "sort-desc");
+    }
+  });
+
   elPageInfo.textContent = `Page ${state.page} / ${pageCount}`;
 
   elPrev.disabled = state.page <= 1;
   elNext.disabled = state.page >= pageCount;
 
-  elTbody.innerHTML = pageItems
-    .map(
-      (t) => `
-      <tr data-id="${t.id}">
-        <td>${t.id}</td>
-        <td>${t.title}</td>
-        <td>${t.assignee}</td>
-        <td>${t.status}</td>
-        <td>${formatDate(t.createdAt)}</td>
-      </tr>
-    `
-    )
-    .join("");
+  // Show/hide empty state
+  if (total === 0) {
+    elEmptyState.style.display = "block";
+    elTbody.innerHTML = "";
+  } else {
+    elEmptyState.style.display = "none";
+    elTbody.innerHTML = pageItems
+      .map(
+        (t) => `
+        <tr data-id="${t.id}" class="${state.updatingTasks.has(t.id) ? 'loading-row' : ''} ${state.recentlyUpdated.has(t.id) ? 'updated' : ''}">
+          <td>${t.id}</td>
+          <td>${highlightSearchTerms(t.title, state.q)}</td>
+          <td>${t.assignee}</td>
+          <td class="status-cell">
+            <span class="status-badge ${getStatusBadgeClass(t.status)}">${t.status.replace('_', ' ')}</span>
+            ${state.updatingTasks.has(t.id) ? '<div class="loading-spinner"></div>' : ''}
+            <div class="status-actions">
+              ${statusTransitions[t.status] ? `<button class="status-action" data-action="${statusTransitions[t.status]}">Mark as ${statusTransitions[t.status].replace('_', ' ')}</button>` : ''}
+            </div>
+          </td>
+          <td>${formatDate(t.createdAt)}</td>
+        </tr>
+      `
+      )
+      .join("");
+  }
+}
+
+function showLoading() {
+  state.loading = true;
+  elLoadingOverlay.style.display = "flex";
+}
+
+function hideLoading() {
+  state.loading = false;
+  elLoadingOverlay.style.display = "none";
+}
+
+function showError(message) {
+  state.error = message;
+  elErrorContainer.innerHTML = `
+    <div class="error-message">
+      <span>⚠️</span>
+      <span>${message}</span>
+    </div>
+  `;
+}
+
+function clearError() {
+  state.error = null;
+  elErrorContainer.innerHTML = "";
+}
+
+async function handleStatusUpdate(taskId, newStatus) {
+  if (state.updatingTasks.has(taskId)) return; // Prevent duplicate updates
+
+  state.updatingTasks.add(taskId);
+  render();
+
+  try {
+    await updateTaskStatus(taskId, newStatus);
+    state.recentlyUpdated.add(taskId);
+
+    // Remove from recently updated after 2 seconds
+    setTimeout(() => {
+      state.recentlyUpdated.delete(taskId);
+      render();
+    }, 2000);
+
+    clearError();
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    state.updatingTasks.delete(taskId);
+    render();
+  }
 }
 
 function openModal(task) {
   elModalBody.innerHTML = `
-    <div class="kv"><div class="k">Task ID</div><div class="v">${task.id}</div></div>
-    <div class="kv"><div class="k">Title</div><div class="v">${task.title}</div></div>
-    <div class="kv"><div class="k">Assignee</div><div class="v">${task.assignee}</div></div>
-    <div class="kv"><div class="k">Status</div><div class="v">${task.status}</div></div>
-    <div class="kv"><div class="k">Created At</div><div class="v">${formatDate(task.createdAt)}</div></div>
+    <div class="task-detail">
+      <div class="task-detail-label">Task ID</div>
+      <div class="task-detail-value">${task.id}</div>
+    </div>
+    <div class="task-detail">
+      <div class="task-detail-label">Title</div>
+      <div class="task-detail-value">${task.title}</div>
+    </div>
+    <div class="task-detail">
+      <div class="task-detail-label">Assignee</div>
+      <div class="task-detail-value">${task.assignee}</div>
+    </div>
+    <div class="task-detail">
+      <div class="task-detail-label">Status</div>
+      <div class="task-detail-value">
+        <span class="status-badge ${getStatusBadgeClass(task.status)}">${task.status.replace('_', ' ')}</span>
+      </div>
+    </div>
+    <div class="task-detail">
+      <div class="task-detail-label">Created At</div>
+      <div class="task-detail-value">${formatDate(task.createdAt)}</div>
+    </div>
   `;
   elBackdrop.style.display = "flex";
 }
@@ -133,20 +288,7 @@ function closeModal() {
   elBackdrop.style.display = "none";
 }
 
-// Events
-elQ.addEventListener("input", (e) => {
-  state.q = e.target.value;
-  state.page = 1;
-  render();
-});
-
-elStatus.addEventListener("change", (e) => {
-  state.status = e.target.value;
-  state.page = 1;
-  render();
-});
-
-elReset.addEventListener("click", () => {
+function resetAllFilters() {
   state.q = "";
   state.status = "ALL";
   state.sortKey = null;
@@ -158,8 +300,27 @@ elReset.addEventListener("click", () => {
   elStatus.value = "ALL";
   elPageSize.value = "10";
 
+  clearError();
+  render();
+}
+
+// Event listeners
+elQ.addEventListener("input", (e) => {
+  state.q = e.target.value;
+  state.page = 1;
+  clearError();
   render();
 });
+
+elStatus.addEventListener("change", (e) => {
+  state.status = e.target.value;
+  state.page = 1;
+  clearError();
+  render();
+});
+
+elReset.addEventListener("click", resetAllFilters);
+elResetEmpty.addEventListener("click", resetAllFilters);
 
 elPageSize.addEventListener("change", (e) => {
   state.pageSize = Number(e.target.value);
@@ -181,9 +342,19 @@ elNext.addEventListener("click", () => {
 elTbody.addEventListener("click", (e) => {
   const tr = e.target.closest("tr");
   if (!tr) return;
-  const id = tr.getAttribute("data-id");
-  const task = state.all.find((x) => x.id === id);
-  if (task) openModal(task);
+
+  const taskId = tr.getAttribute("data-id");
+  const actionBtn = e.target.closest(".status-action");
+
+  if (actionBtn) {
+    // Handle status update
+    const newStatus = actionBtn.getAttribute("data-action");
+    handleStatusUpdate(taskId, newStatus);
+  } else {
+    // Handle modal open
+    const task = state.all.find((x) => x.id === taskId);
+    if (task) openModal(task);
+  }
 });
 
 elClose.addEventListener("click", closeModal);
@@ -216,6 +387,14 @@ document.querySelectorAll("th[data-key]").forEach((th) => {
 
 // Init
 (async function init() {
-  state.all = await listTasks();
-  render();
+  try {
+    showLoading();
+    clearError();
+    state.all = await listTasks();
+    render();
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    hideLoading();
+  }
 })();
