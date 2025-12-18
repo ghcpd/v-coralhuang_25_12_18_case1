@@ -5,35 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Task Dashboard - Baseline Demo</title>
     <style>
-      body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #f6f7f9; }
-      header { background: #1f2937; color: #fff; padding: 12px 16px; }
-      .container { padding: 16px; max-width: 1100px; margin: 0 auto; }
-      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      input, select, button {
-        height: 34px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 10px;
-        background: #fff; font-size: 14px;
+      :root{
+        --bg:#f4f6f8; --surface:#ffffff; --muted:#6b7280; --brand:#0f766e; --accent:#06b6d4; --danger:#dc2626; --glass: rgba(15,23,42,0.04);
       }
-      button { cursor: pointer; }
-      button:active { transform: translateY(1px); }
-      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
-      th { user-select: none; cursor: pointer; background: #fafafa; }
-      tr:hover { background: #f9fafb; }
-      .muted { color: #6b7280; font-size: 12px; }
-      .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; }
-      .pager button { height: 30px; }
-      .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 12px; background: #fff; }
+      *{box-sizing:border-box}
+      body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 0; background: var(--bg); color: #0f172a; -webkit-font-smoothing:antialiased }
+      header { background: linear-gradient(90deg, #0f172a, #081426); color: #fff; padding: 18px 16px; box-shadow: 0 2px 12px rgba(2,6,23,0.35); }
+      header .brand { max-width:1100px;margin:0 auto; display:flex; gap:12px; align-items:baseline; }
+      header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing: -0.2px }
+      header p { margin:0; color: rgba(255,255,255,0.85); font-size:13px }
 
-      /* Modal */
-      .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 16px; }
-      .modal { width: 520px; max-width: 100%; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; }
-      .modal-hd { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content: space-between; align-items:center; }
-      .modal-bd { padding: 14px; }
-      .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 10px; }
-      .k { color:#374151; font-weight: 600; }
-      .v { color:#111827; }
-      .xbtn { border: none; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+      .container { padding: 22px; max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items:start; }
+      .card { background: var(--surface); border-radius: 12px; padding: 16px; box-shadow: 0 6px 20px var(--glass); border: 1px solid rgba(2,6,23,0.06); }
+
+      /* controls */
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      input[type="search"], select, button {
+        height: 38px; border: 1px solid rgba(2,6,23,0.08); border-radius: 8px; padding: 0 12px; background: #fff; font-size: 14px; color: #071133;
+      }
+      input[type="search"] { min-width: 240px; box-shadow: inset 0 -1px 0 rgba(2,6,23,0.02) }
+      .muted { color: var(--muted); font-size: 13px }
+
+      .controls { display:flex; gap:12px; align-items:center; width:100%; justify-content:space-between }
+      .controls-left { display:flex; gap:10px; align-items:center }
+      .controls-right { display:flex; gap:10px; align-items:center }
+
+      .pill { padding: 6px 10px; border-radius: 999px; font-size: 13px; background: rgba(2,6,23,0.04); color: #071133; border: 1px solid rgba(2,6,23,0.04) }
+      .btn-ghost { background: transparent; border: 1px dashed rgba(2,6,23,0.06); color: var(--muted) }
+      .btn-primary { background: linear-gradient(90deg,var(--brand), #075985); color: #fff; border: none; padding: 8px 12px; border-radius: 8px }
+      .tiny { font-size: 12px; padding:6px 10px }
+
+      /* table */
+      .table-wrap { margin-top: 14px; overflow: auto }
+      table { width: 100%; border-collapse: collapse; min-width: 720px; background: transparent }
+      th, td { padding: 12px 10px; border-bottom: 1px solid rgba(2,6,23,0.06); text-align: left; font-size: 14px; vertical-align: middle }
+      th { user-select: none; cursor: pointer; background: linear-gradient(180deg, rgba(15,23,42,0.02), transparent); color: #0b1220; font-weight:600; position:relative }
+      th .sort { margin-left:8px; font-size:12px; color: var(--muted); }
+      tr { transition: background .18s ease, transform .12s ease }
+      tr.interactive { cursor: pointer }
+      tr:hover { background: rgba(6,8,15,0.02); transform: translateY(-1px) }
+      td.status { width: 140px }
+      .status-pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; font-weight:600; font-size:13px }
+      .s-todo { background: rgba(6,95,70,0.06); color: #065f46; border:1px solid rgba(6,95,70,0.09) }
+      .s-ing { background: rgba(12,74,110,0.06); color:#0b556b; border:1px solid rgba(12,74,110,0.09) }
+      .s-done { background: rgba(5,150,105,0.06); color:#065f46; border:1px solid rgba(5,150,105,0.09) }
+      .status-action { background: rgba(255,255,255,0.9); border:1px solid rgba(2,6,23,0.06); padding:6px 8px; border-radius:8px; font-weight:600; cursor:pointer }
+      .status-action[disabled] { opacity: .6; cursor: not-allowed }
+      .spinner { width:14px; height:14px; border-radius:50%; border:2px solid rgba(2,6,23,0.08); border-top-color: var(--accent); animation: spin 800ms linear infinite }
+      @keyframes spin { to { transform: rotate(360deg) } }
+
+      /* highlight for updated rows */
+      tr.recent { animation: pulse 1.6s ease; box-shadow: 0 6px 18px rgba(3,7,18,0.06); }
+      @keyframes pulse { 0% { background: rgba(6,95,70,0.08) } 60% { background: rgba(6,95,70,0.03) } 100% { background: transparent } }
+
+      /* empty / loading / error */
+      .empty { text-align: center; padding: 36px; color: var(--muted) }
+      .empty button { margin-top:12px }
+      .banner { display:flex; gap:12px; align-items:center; margin-top:12px }
+      .banner .msg { padding:10px 12px; border-radius:8px; background: #fff; border:1px solid rgba(2,6,23,0.04); box-shadow: 0 6px 18px var(--glass); }
+      .loading-bar { height:6px; background: linear-gradient(90deg, rgba(6,182,212,0.2), rgba(6,182,212,0.6)); border-radius: 6px; overflow: hidden }
+      .error { color: var(--danger); font-weight:600 }
+
+      /* usage guide sidebar */
+      aside.guide { position: sticky; top: 22px; height: fit-content; padding:14px; border-radius:12px; background: linear-gradient(180deg, rgba(6,8,15,0.02), rgba(255,255,255,0.6)); border:1px solid rgba(2,6,23,0.04); box-shadow: 0 8px 26px rgba(2,6,23,0.04) }
+      aside h3 { margin:0 0 8px 0; font-size:14px }
+      aside p { margin:6px 0; color:var(--muted); font-size:13px }
+      aside .hint { display:flex; gap:8px; align-items:flex-start; margin-top:8px }
+      aside .kbd { background: rgba(2,6,23,0.04); padding:6px 8px; border-radius:6px; font-weight:700; color:#071133; font-size:12px }
+
+      /* modal tweaks */
+      .modal { border-radius: 12px; overflow: hidden }
+      .modal-hd { padding: 14px 16px }
+      .modal-bd { padding: 16px }
+
+      /* responsive */
+      @media (max-width: 880px) {
+        .container { grid-template-columns: 1fr; padding: 14px }
+        aside.guide { order: -1; position: relative; top: auto }
+      }
     </style>
   </head>
   <body>
@@ -46,36 +95,65 @@
 
     <div class="container">
       <div class="card">
-        <div class="row">
-          <input id="q" placeholder="Search by title..." style="width:260px;" />
+        <div class="controls">
+          <div class="controls-left">
+            <input id="q" type="search" placeholder="Search by title..." autocomplete="off" />
 
-          <select id="status" aria-label="Status filter">
-            <option value="ALL">All Status</option>
-            <option value="TODO">TODO</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="DONE">DONE</option>
-          </select>
+            <select id="status" aria-label="Status filter">
+              <option value="ALL">All Status</option>
+              <option value="TODO">TODO</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="DONE">DONE</option>
+            </select>
 
-          <button id="reset" type="button">Reset</button>
+            <button id="reset" class="btn-ghost tiny" type="button">Reset view</button>
 
-          <span class="pill" id="summary">0 items</span>
-          <span class="muted">Click headers to sort. Click a row to view details.</span>
+            <span class="pill" id="summary">0 items</span>
+          </div>
+
+          <div class="controls-right">
+            <div id="activeFilters" aria-hidden="false" class="muted" style="display:flex;gap:8px;align-items:center"></div>
+            <button id="refresh" class="btn-primary tiny" type="button">Refresh</button>
+          </div>
         </div>
 
-        <table aria-label="Task table">
-          <thead>
-            <tr>
-              <th data-key="id">Task ID</th>
-              <th data-key="title">Title</th>
-              <th data-key="assignee">Assignee</th>
-              <th data-key="status">Status</th>
-              <th data-key="createdAt">Created At</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+        <div class="banner" id="bannerArea" style="display:none">
+          <div class="msg" style="flex:1">
+            <div id="bannerText" class="muted">Loading tasks…</div>
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center"><div class="loading-bar" style="width:140px"></div><div id="bannerAction"></div></div>
+          </div>
+          <div style="min-width:120px;text-align:right">
+            <div id="bannerMeta" class="muted" style="font-size:12px">&nbsp;</div>
+          </div>
+        </div>
 
-        <div class="pager">
+        <div class="table-wrap card" style="margin:14px 0;padding:12px;">
+          <table aria-label="Task table">
+            <thead>
+              <tr>
+                <th data-key="id">Task ID <span class="sort" data-key="id"></span></th>
+                <th data-key="title">Title <span class="sort" data-key="title"></span></th>
+                <th data-key="assignee">Assignee <span class="sort" data-key="assignee"></span></th>
+                <th data-key="status">Status <span class="sort" data-key="status"></span></th>
+                <th data-key="createdAt">Created At <span class="sort" data-key="createdAt"></span></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+
+          <div id="emptyState" style="display:none">
+            <div class="empty">
+              <div style="font-size:16px;font-weight:700;color:#0f172a">No tasks match your filters</div>
+              <div class="muted" style="max-width:420px;margin:8px auto">Try resetting filters or changing your search terms. You can also refresh the task list to re-load mock data.</div>
+              <div style="margin-top:14px">
+                <button id="emptyReset" class="btn-ghost">Reset filters</button>
+                <button id="emptyRefresh" class="btn-primary">Refresh data</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pager" style="margin-top:8px">
           <span class="muted">Page size</span>
           <select id="pageSize" aria-label="Page size">
             <option value="5">5</option>
@@ -88,6 +166,17 @@
           <button id="next" type="button">Next</button>
         </div>
       </div>
+
+      <aside class="guide" aria-labelledby="guideTitle">
+        <h3 id="guideTitle">Usage guide</h3>
+        <p><strong>Search:</strong> type keywords in the search box; matching words are highlighted in titles.</p>
+        <p><strong>Filter & sort:</strong> use the status menu and click column headers to cycle sorting (asc → desc → none).</p>
+        <p><strong>Pagination:</strong> change page size or use Prev / Next to navigate pages.</p>
+        <p><strong>Inline updates:</strong> click the status pill to advance a task (TODO → IN_PROGRESS → DONE). Updates show row-level loading and brief success highlights.</p>
+        <div class="hint"><div class="kbd">Reset</div><div class="muted">clears filters, sorting, and pagination</div></div>
+        <div class="hint"><div class="kbd">Refresh</div><div class="muted">re-fetches mock data (with simulated delay)</div></div>
+        <p style="margin-top:10px;font-size:13px;color:var(--muted)">This guide is persistent and responsive — it stays visible to help you explore the UI.</p>
+      </aside>
     </div>
 
     <!-- Modal -->
