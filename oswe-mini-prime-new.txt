@@ -1,0 +1,278 @@
+User: You are a **frontend software engineer** working on an existing internal product.
+
+You are given a **working baseline web UI demo** for a **Task Management Dashboard**.
+The baseline source code has already been provided to you.
+
+The application is implemented using **plain HTML, CSS, and vanilla JavaScript**
+(no framework, no build tools, no external UI libraries).
+
+The baseline application **runs correctly** and must **not be rewritten from scratch**.
+
+---
+
+## Baseline Functionality
+
+The baseline application already supports a basic task dashboard, including:
+
+* A task table with search, filter, sorting, and pagination
+* Read-only task detail view
+* Local mock data
+* Minimal styling and no advanced UI feedback
+
+The baseline is intentionally simple and functional.
+
+---
+
+## Your Task
+
+Improve and polish the existing UI by adding **visual quality, clearer feedback, richer interactions, and in-context guidance**, while keeping all baseline behavior intact.
+
+This task focuses on **real-world frontend craftsmanship**, not just feature completeness.
+
+---
+
+## Required Improvements
+
+### 1. UI Visual Quality & Frontend Polish (Mandatory)
+
+You must significantly improve the overall look and feel of the application.
+
+This includes, but is not limited to:
+
+* A clear and structured layout (header, controls, content area, sidebar)
+* Improved spacing, typography, and alignment
+* A consistent and intentional color system
+* Clear visual hierarchy between primary and secondary elements
+* Polished table presentation with hover states and readable density
+* Subtle animations or transitions where appropriate
+* Reasonable responsiveness on smaller screens
+
+The UI should feel **intentional, modern, and production-quality**, not just restyled.
+
+---
+
+### 2. Loading, Error, and State Feedback
+
+* Display a loading indicator while tasks are being fetched
+* Handle simulated loading failures with clear error messages
+* Avoid layout jumps during loading or error states
+* Clearly indicate active search, filters, and sorting
+* Provide a single action to reset all view state (filters, sorting, pagination)
+
+---
+
+### 3. Inline Task Status Updates
+
+* Allow task status updates directly within the table
+* Enforce the transition order: `TODO → IN_PROGRESS → DONE`
+* While updating:
+
+  * Show row-level loading
+  * Prevent duplicate actions
+* On success:
+
+  * Update the UI immediately
+  * Briefly highlight the updated task
+* On failure:
+
+  * Show an inline error and revert state
+
+(Mock update logic is acceptable; no backend required.)
+
+---
+
+### 4. Usability Enhancements (All Required)
+
+Implement all of the following:
+
+* Highlight matching keywords in task titles during search
+* Provide a clear empty-state view when no tasks match current filters, including a reset action
+* Make table rows clearly interactive through hover and cursor feedback
+* Visually mark recently updated tasks for a short duration without breaking sorting or filtering
+
+---
+
+### 5. Usage Guide Sidebar
+
+Add a **persistent usage guide sidebar** to the page.
+
+The sidebar must:
+
+* Be visible alongside the main content (not a modal)
+* Briefly explain how to:
+
+  * Search tasks
+  * Filter and sort results
+  * Navigate pagination
+  * Update task status inline
+* Use concise, instructional language
+* Be visually distinct but unobtrusive
+* Adapt reasonably on smaller screens (collapsible or stacked layout is acceptable)
+
+The usage guide must be part of the UI itself, not only documented in README.
+
+---
+
+## Constraints
+
+* Do not remove or break existing functionality
+* Do not rewrite the application using a framework
+* No backend or external services
+* All state remains client-side
+* Incremental improvement only; avoid unnecessary abstraction
+
+---
+
+## Deliverables
+
+You must submit:
+
+* Updated HTML, CSS, and JavaScript source code
+* Clearly improved UI styling
+* A **README.md** describing:
+
+  * How to run the demo
+  * Key UI and interaction improvements
+  * How inline status updates work
+  * Design decisions, including the usage guide sidebar
+
+---
+
+## Evaluation Criteria
+
+### Pass
+
+* Baseline behavior remains intact
+* UI is clearly more polished, modern, and usable
+* Feedback and state changes are clear and consistent
+* Usage guide sidebar is accurate and helpful
+* Code changes are readable and incremental
+* README allows full reproduction
+
+### Fail
+
+* Baseline functionality is broken
+* UI improvements are superficial
+* State handling is confusing or fragile
+* Usage guide is missing or misleading
+* Code is unnecessarily rewritten
+* README is incomplete
+
+
+GitHub Copilot: Optimizing tool selection...I'm going to inspect the project files to find where to add the UI and behavior changes; next I’ll open index.html and app.js.
+
+Created 8 todos
+
+Read [](file:///c%3A/Bug_Bash/25_12_18/v-coralhuang_25_12_18_case1/index.html)
+
+Read [](file:///c%3A/Bug_Bash/25_12_18/v-coralhuang_25_12_18_case1/app.js)
+
+Perfect! I found the baseline layout and will update index.html to add a polished layout, styles, and a persistent usage guide sidebar; next I'll apply the edits.
+
+Using "Multi-Replace String in Files"
+
+
+```
+
+```
+My next step is to implement the JavaScript changes: loading/error UI, search highlighting, inline status updates, and interaction improvements. I'll update app.js accordingly.
+
+Using "Replace String in File"
+
+
+```
+
+```
+Proceeding to add a README with run instructions and notes on the improvements made.
+
+Created [](file:///c%3A/Bug_Bash/25_12_18/v-coralhuang_25_12_18_case1/README.md)
+
+Made changes.
+
+User: @agent Try Again
+
+GitHub Copilot: Completed: *Review baseline app & data* (1/8)
+
+Read [](file:///c%3A/Bug_Bash/25_12_18/v-coralhuang_25_12_18_case1/app.js)
+
+Read [](file:///c%3A/Bug_Bash/25_12_18/v-coralhuang_25_12_18_case1/index.html)
+
+Using "Replace String in File"
+
+
+```
+
+```
+
+
+Using "Replace String in File"
+
+
+```
+
+```
+
+
+Using "Replace String in File"
+
+
+```
+
+```
+
+
+Using "Replace String in File"
+
+
+```
+
+```
+Perfect! The UI improvements, loading/error handling, inline status updates, search highlighting, and usage guide sidebar are implemented. My next step is to do a quick manual verification; tell me if you want any specific refinements.## ✅ Summary — Changes implemented
+
+**What I did**
+- Modernized layout and styling: header, main card, and a persistent **Usage Guide** sidebar. ✅  
+- Added loading & error UI with a non-jumping skeleton and banner + a **Simulate load failure** checkbox for testing. ⚠️  
+- Implemented **inline status updates** (mocked): `TODO → IN_PROGRESS → DONE`, with row-level spinner, duplicate-action prevention, brief highlight on success, and inline error handling on failure. 🔧  
+- Improved interactivity and usability: search term highlighting in titles, active filter/sort pills with clear buttons, empty-state UI with reset action, keyboard support (row focus + Enter/Space opens details), and interactive row hover/cursor feedback. ✨  
+- Updated README with run steps, key improvements, how inline updates work, and design notes. 📄
+
+Files changed
+- index.html — layout, styles, usage guide sidebar, loading overlay, and UI controls
+- app.js — loading/error handling, search highlighting, inline status updates, keyboard support, UI state and rendering logic
+- README.md — run instructions and design notes
+
+---
+
+## 🔎 How to run & test
+
+1. Open the project folder and open index.html in a modern browser (no build/tools required).  
+2. Test cases:
+   - Load behavior: refresh the page; you should see a loading skeleton and spinner.  
+   - Simulate load failure: check **Simulate load failure** and click **Reset view**; the banner will show an error with Retry/Reset actions.  
+   - Search highlighting: type in the search box; matches in task titles are highlighted and active filters show as pills.  
+   - Sorting: click column headers to cycle Asc / Desc / None; indicators show ▲ / ▼.  
+   - Pagination: change page size and use Prev/Next.  
+   - Inline status update: click the **Status** button in a row to advance (TODO → IN_PROGRESS → DONE); a spinner shows while updating; success triggers a brief row highlight; failures show an inline error.  
+   - Keyboard: use Tab to focus table rows and press Enter/Space to open details.
+
+---
+
+## 🔧 Notes on behavior & design choices
+
+- Inline updates are mocked via `updateTaskStatus()` (simulates latency and occasional transient failure). No backend required.  
+- Loading skeleton uses stable row heights to avoid layout shifts.  
+- Recent updates are visually highlighted for a short period (3s), but the data still obeys current sorting/filtering rules.  
+- Reset action returns filters, sort, pagination to defaults and re-loads tasks.
+
+---
+
+## What I can do next (suggestions) 💡
+- Add keyboard shortcuts or ARIA improvements (announce updates to assistive tech).  
+- Add small UX refinements (toast for one-off messages, undo for status changes).  
+- Add unit tests / small play tests for edge cases.
+
+---
+
+If you'd like, I can make any of the follow-up improvements above now — tell me which one to prioritize.
+
+Made changes.

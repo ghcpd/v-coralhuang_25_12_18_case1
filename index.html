@@ -5,35 +5,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Task Dashboard - Baseline Demo</title>
     <style>
-      body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #f6f7f9; }
-      header { background: #1f2937; color: #fff; padding: 12px 16px; }
-      .container { padding: 16px; max-width: 1100px; margin: 0 auto; }
-      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      input, select, button {
-        height: 34px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 10px;
-        background: #fff; font-size: 14px;
+      :root{
+        --bg:#f4f6f9; --surface:#ffffff; --muted:#6b7280; --border:#e6e9ee;
+        --accent:#2563eb; --accent-600:#1e40af; --success:#10b981; --danger:#ef4444;
+        --radius:10px; --card-padding:16px; --shadow: 0 6px 18px rgba(16,24,40,0.06);
       }
-      button { cursor: pointer; }
-      button:active { transform: translateY(1px); }
-      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
-      th { user-select: none; cursor: pointer; background: #fafafa; }
-      tr:hover { background: #f9fafb; }
-      .muted { color: #6b7280; font-size: 12px; }
-      .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; }
-      .pager button { height: 30px; }
-      .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 12px; background: #fff; }
 
-      /* Modal */
-      .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 16px; }
-      .modal { width: 520px; max-width: 100%; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; }
-      .modal-hd { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content: space-between; align-items:center; }
-      .modal-bd { padding: 14px; }
-      .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 10px; }
-      .k { color:#374151; font-weight: 600; }
-      .v { color:#111827; }
-      .xbtn { border: none; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; background: var(--bg); color:#0f172a; }
+
+      header{
+        background: linear-gradient(90deg,#0f172a 0%, #111827 100%);
+        color: #fff; padding: 18px 20px; box-shadow: 0 2px 6px rgba(2,6,23,0.15);
+      }
+      .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .brand{font-weight:700;font-size:18px;letter-spacing:0.2px}
+      .subtitle{color:rgba(255,255,255,0.8);font-size:12px}
+
+      .layout{max-width:1200px;margin:20px auto;display:grid;grid-template-columns:1fr 300px;gap:18px;padding:0 18px}
+
+      /* Main content card */
+      .card{background:var(--surface);border-radius:var(--radius);padding:var(--card-padding);box-shadow:var(--shadow);border:1px solid var(--border)}
+
+      .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+      .controls .left{display:flex;gap:10px;align-items:center}
+      .controls input[type=text], .controls select{height:40px;border-radius:8px;border:1px solid var(--border);padding:0 12px;font-size:14px}
+
+      .btn{height:40px;padding:0 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+      .btn.secondary{background:#f3f4f6;color:#111827;border:1px solid var(--border)}
+      .btn.ghost{background:transparent;border:1px dashed var(--border);color:var(--muted)}
+
+      .pill{background:#fff;border:1px solid var(--border);color:var(--muted);padding:6px 10px;border-radius:999px;font-size:13px}
+
+      .meta{color:var(--muted);font-size:13px;margin-left:auto;display:flex;align-items:center;gap:10px}
+
+      table{width:100%;border-collapse:collapse;margin-top:6px}
+      th, td{padding:12px 10px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
+      th{background:linear-gradient(180deg,#fafafa,#fff);position:relative;cursor:pointer;color:#334155;font-weight:600}
+      th .sort-ind{font-size:11px;color:var(--muted);margin-left:6px}
+      tr{transition:background 160ms ease, transform 120ms ease; cursor:pointer}
+      tr:hover{background:#fbfdff;transform:translateY(-1px);box-shadow:0 4px 10px rgba(2,6,23,0.04)}
+      tr.recent{animation: highlight 2s ease; box-shadow: 0 8px 20px rgba(59,130,246,0.08)}
+      @keyframes highlight{0%{background:#fff8e0}50%{background:#fffef6}100%{background:transparent}}
+
+      /* inline highlight for search */
+      mark{background:rgba(37,99,235,0.15);padding:0 3px;border-radius:3px;font-weight:600;color:var(--accent-600)}
+
+      .status-btn{border-radius:6px;padding:6px 8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:600}
+      .status-TODO{color:#b91c1c;background:#fff5f5;border-color:#fee2e2}
+      .status-IN_PROGRESS{color:#b45309;background:#fffbeb;border-color:#fde68a}
+      .status-DONE{color:#065f46;background:#ecfdf5;border-color:#bbf7d0}
+
+      .status-spinner{width:18px;height:18px;border:3px solid rgba(0,0,0,0.12);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle}
+      @keyframes spin{to{transform:rotate(360deg)}}
+
+      .row-error{color:var(--danger);font-size:13px;margin-top:6px}
+
+      /* sidebar */
+      aside.sidebar{position:sticky;top:22px;height:fit-content}
+      .guide{padding:12px;border-radius:8px;background:linear-gradient(180deg,#fff,#f8fafc);border:1px solid var(--border)}
+      .guide h4{margin:0 0 8px 0}
+      .guide p{margin:8px 0;color:var(--muted);font-size:13px}
+      .guide ul{padding-left:18px;margin:6px 0;color:var(--muted);font-size:13px}
+
+      /* loading & error banner */
+      .banner{padding:10px 12px;border-radius:8px;margin-bottom:12px}
+      .banner.error{background:#fff5f5;border:1px solid #fee2e2;color:var(--danger)}
+      .banner.info{background:#f8fbff;border:1px solid #dbeafe;color:#0f172a}
+
+      /* empty state */
+      .empty{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px;background:#fff;border-radius:8px;border:1px dashed var(--border)}
+
+      /* responsive */
+      @media (max-width:920px){
+        .layout{grid-template-columns:1fr}
+        aside.sidebar{order:2}
+      }
+
+      /* accessibility focus */
+      button:focus, .status-btn:focus, a:focus{outline:2px solid rgba(37,99,235,0.25);outline-offset:2px}
     </style>
   </head>
   <body>
@@ -44,50 +95,88 @@
       </div>
     </header>
 
-    <div class="container">
-      <div class="card">
-        <div class="row">
-          <input id="q" placeholder="Search by title..." style="width:260px;" />
+    <div class="layout">
+      <main>
+        <div class="card" aria-live="polite">
+          <div class="controls">
+            <div class="left">
+              <input id="q" type="text" placeholder="Search by title..." aria-label="Search tasks" />
 
-          <select id="status" aria-label="Status filter">
-            <option value="ALL">All Status</option>
-            <option value="TODO">TODO</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="DONE">DONE</option>
-          </select>
+              <select id="status" aria-label="Status filter">
+                <option value="ALL">All Status</option>
+                <option value="TODO">TODO</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="DONE">DONE</option>
+              </select>
 
-          <button id="reset" type="button">Reset</button>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);">
+                <input id="simulateFail" type="checkbox" /> <span>Simulate load failure</span>
+              </label>
 
-          <span class="pill" id="summary">0 items</span>
-          <span class="muted">Click headers to sort. Click a row to view details.</span>
+              <button id="reset" class="btn secondary" type="button">Reset view</button>
+
+            </div>
+
+            <div class="meta">
+              <div class="pill" id="summary">0 items</div>
+              <div id="activeFilters" style="display:flex;gap:8px;align-items:center"></div>
+            </div>
+          </div>
+
+          <div id="bannerArea"></div>
+
+          <div style="min-height:220px;position:relative">
+            <table aria-label="Task table">
+              <thead>
+                <tr>
+                  <th data-key="id">Task ID <span class="sort-ind" id="sort-id"></span></th>
+                  <th data-key="title">Title <span class="sort-ind" id="sort-title"></span></th>
+                  <th data-key="assignee">Assignee <span class="sort-ind" id="sort-assignee"></span></th>
+                  <th data-key="status">Status <span class="sort-ind" id="sort-status"></span></th>
+                  <th data-key="createdAt">Created At <span class="sort-ind" id="sort-createdAt"></span></th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+
+            <div id="loadingOverlay" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.6));border-radius:8px">
+              <div style="display:flex;gap:10px;align-items:center"><div class="status-spinner" style="width:22px;height:22px;border-width:3px"></div><div style="font-weight:600;color:var(--muted)">Loading tasks…</div></div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;margin-top:12px;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="muted">Page size</span>
+              <select id="pageSize" aria-label="Page size">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+              </select>
+
+              <button id="prev" type="button" class="btn ghost">Prev</button>
+              <button id="next" type="button" class="btn ghost">Next</button>
+            </div>
+
+            <div class="muted" id="pageInfo"></div>
+          </div>
         </div>
+      </main>
 
-        <table aria-label="Task table">
-          <thead>
-            <tr>
-              <th data-key="id">Task ID</th>
-              <th data-key="title">Title</th>
-              <th data-key="assignee">Assignee</th>
-              <th data-key="status">Status</th>
-              <th data-key="createdAt">Created At</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-
-        <div class="pager">
-          <span class="muted">Page size</span>
-          <select id="pageSize" aria-label="Page size">
-            <option value="5">5</option>
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
-          </select>
-
-          <button id="prev" type="button">Prev</button>
-          <span id="pageInfo" class="muted"></span>
-          <button id="next" type="button">Next</button>
+      <aside class="sidebar">
+        <div class="guide card">
+          <h4>Quick Guide</h4>
+          <p>Key interactions for the Task Dashboard — kept brief for quick reference.</p>
+          <ul>
+            <li><strong>Search:</strong> Type in the search box to filter titles. Matches are highlighted.</li>
+            <li><strong>Filter:</strong> Use the status dropdown to show specific tasks.</li>
+            <li><strong>Sort:</strong> Click column headers to cycle Asc / Desc / None.</li>
+            <li><strong>Pagination:</strong> Use Prev / Next to navigate. Change page size to view more rows.</li>
+            <li><strong>Inline status:</strong> Click the Status button in a row to advance it: <em>TODO → IN_PROGRESS → DONE</em>. A spinner shows while updating and the row is briefly highlighted on success.</li>
+            <li><strong>Reset:</strong> Use <em>Reset view</em> or empty-state action to clear filters and sorting.</li>
+          </ul>
+          <p style="margin-top:8px;color:var(--muted)">On small screens the guide moves below the table. Use the "Simulate load failure" checkbox to test error handling.</p>
         </div>
-      </div>
+      </aside>
     </div>
 
     <!-- Modal -->
