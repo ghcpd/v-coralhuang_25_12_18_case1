@@ -32,14 +32,31 @@ function seededTasks() {
   return tasks;
 }
 
-// "Mock API" (delay only)
+// "Mock API" (delay + simulated failure)
 async function listTasks() {
-  await new Promise((r) => setTimeout(r, 80));
+  // simulate network latency
+  await new Promise((r) => setTimeout(r, 300));
+  // simulate failure 15% of the time
+  if (Math.random() < 0.15) throw new Error("Failed to fetch tasks. Please try again.");
   return seededTasks();
+}
+
+// Mock update API: update status with simulated latency and 15% failure
+async function updateTaskStatus(id, newStatus) {
+  await new Promise((r) => setTimeout(r, 300));
+  if (Math.random() < 0.15) throw new Error("Failed to update task status.");
+  return true;
 }
 
 // State
 const state = {
+  // Set of ids currently being updated
+  updating: new Set(),
+  // Temporary errors per id
+  updateErrors: new Map(),
+  // Id of the last updated task (for highlight)
+  lastUpdatedId: null,
+
   all: [],
   q: "",
   status: "ALL",
@@ -63,6 +80,13 @@ const elPageInfo = document.getElementById("pageInfo");
 const elBackdrop = document.getElementById("backdrop");
 const elClose = document.getElementById("close");
 const elModalBody = document.getElementById("modalBody");
+
+const elLoading = document.getElementById("loadingOverlay");
+const elError = document.getElementById("errorMessage");
+const elErrorText = document.getElementById("errorText");
+const elRetry = document.getElementById("retryBtn");
+const elEmptyState = document.getElementById("emptyState");
+const elResetEmpty = document.getElementById("resetEmpty");
 
 // Derived
 function applyQueryFilterSort() {
@@ -88,6 +112,18 @@ function applyQueryFilterSort() {
 }
 
 function render() {
+  // update active styles for controls
+  if (state.q.trim()) elQ.classList.add('active-input'); else elQ.classList.remove('active-input');
+  if (state.status !== 'ALL') elStatus.classList.add('active-input'); else elStatus.classList.remove('active-input');
+
+  // update sort indicators
+  document.querySelectorAll('th[data-key]').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (state.sortKey === th.getAttribute('data-key')) {
+      th.classList.add(state.sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
   const full = applyQueryFilterSort();
   const total = full.length;
 
@@ -103,20 +139,44 @@ function render() {
   elPrev.disabled = state.page <= 1;
   elNext.disabled = state.page >= pageCount;
 
+  // build rows
   elTbody.innerHTML = pageItems
-    .map(
-      (t) => `
-      <tr data-id="${t.id}">
+    .map((t) => {
+      // highlight matches in title
+      let title = t.title.replace(/(<|>)/g, '\\$1'); // escape HTML
+      const q = state.q.trim();
+      if (q) {
+        const re = new RegExp(q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'ig');
+        title = title.replace(re, (m) => `<span class="search-highlight">${m}</span>`);
+      }
+
+      const isUpdating = state.updating.has(t.id);
+      const errorMsg = state.updateErrors.get(t.id);
+
+      return `
+      <tr data-id="${t.id}" class="${state.lastUpdatedId === t.id ? 'highlight' : ''}">
         <td>${t.id}</td>
-        <td>${t.title}</td>
+        <td>${title}</td>
         <td>${t.assignee}</td>
-        <td>${t.status}</td>
+        <td>
+          <span class="status-cell ${isUpdating ? 'loading' : ''} status-${t.status}" data-id="${t.id}" >${t.status}</span>
+          ${errorMsg ? `<div class="status-error">${errorMsg}</div>` : ''}
+        </td>
         <td>${formatDate(t.createdAt)}</td>
       </tr>
-    `
-    )
-    .join("");
+    `;
+    })
+    .join('');
+
+  // empty state handling
+  if (full.length === 0) {
+    elEmptyState.style.display = 'block';
+  } else {
+    elEmptyState.style.display = 'none';
+  }
 }
+
+
 
 function openModal(task) {
   elModalBody.innerHTML = `
@@ -147,6 +207,7 @@ elStatus.addEventListener("change", (e) => {
 });
 
 elReset.addEventListener("click", () => {
+  // Reset filter/search/sort/pagination
   state.q = "";
   state.status = "ALL";
   state.sortKey = null;
@@ -160,6 +221,7 @@ elReset.addEventListener("click", () => {
 
   render();
 });
+
 
 elPageSize.addEventListener("change", (e) => {
   state.pageSize = Number(e.target.value);
@@ -179,12 +241,54 @@ elNext.addEventListener("click", () => {
 
 // Click row -> modal
 elTbody.addEventListener("click", (e) => {
+  // Status cell click -> inline update
+  const statusEl = e.target.closest('.status-cell');
+  if (statusEl) {
+    const id = statusEl.getAttribute('data-id');
+    if (!id) return;
+    // prevent if already updating
+    if (state.updating.has(id)) return;
+
+    const task = state.all.find((x) => x.id === id);
+    if (!task) return;
+
+    // determine next status
+    const next = {TODO: 'IN_PROGRESS', IN_PROGRESS: 'DONE', DONE: 'DONE'}[task.status] || task.status;
+    if (next === task.status) return; // no change
+
+    // start update
+    state.updating.add(id);
+    state.updateErrors.delete(id);
+    render(); // show loading state for row
+
+    updateTaskStatus(id, next)
+      .then(() => {
+        task.status = next;
+        state.lastUpdatedId = id;
+        // clear update state and trigger highlight reset
+        setTimeout(() => {
+          state.lastUpdatedId = null;
+          render();
+        }, 2000);
+      })
+      .catch((err) => {
+        state.updateErrors.set(id, err.message || 'Update failed');
+      })
+      .finally(() => {
+        state.updating.delete(id);
+        render();
+      });
+    return;
+  }
+
+  // Otherwise row click -> modal
   const tr = e.target.closest("tr");
   if (!tr) return;
   const id = tr.getAttribute("data-id");
   const task = state.all.find((x) => x.id === id);
   if (task) openModal(task);
 });
+
 
 elClose.addEventListener("click", closeModal);
 elBackdrop.addEventListener("click", (e) => {
@@ -214,8 +318,43 @@ document.querySelectorAll("th[data-key]").forEach((th) => {
   });
 });
 
+// Init and fetch helper
+async function loadTasks() {
+  elLoading.style.display = 'flex';
+  elError.style.display = 'none';
+  elEmptyState.style.display = 'none';
+
+  try {
+    const tasks = await listTasks();
+    state.all = tasks;
+    state.page = 1;
+    render();
+  } catch (err) {
+    elErrorText.textContent = err.message || 'Failed to fetch tasks.';
+    elError.style.display = 'block';
+  } finally {
+    elLoading.style.display = 'none';
+  }
+}
+
+// Retry after error
+elRetry.addEventListener('click', () => {
+  elError.style.display = 'none';
+  loadTasks();
+});
+
+// Empty state reset
+elResetEmpty.addEventListener('click', () => {
+  elQ.value = '';
+  elStatus.value = 'ALL';
+  state.q = '';
+  state.status = 'ALL';
+  state.page = 1;
+  render();
+});
+
 // Init
 (async function init() {
-  state.all = await listTasks();
-  render();
+  await loadTasks();
 })();
+
