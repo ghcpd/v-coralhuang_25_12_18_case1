@@ -1,4 +1,4 @@
-// Enhanced Task Dashboard with status updates, loading states, and UI polish
+// Enhanced Task Dashboard with loading states, inline updates, and keyboard highlighting
 
 function pad(n, len) {
   const s = String(n);
@@ -27,7 +27,7 @@ function seededTasks() {
       assignee: assignees[i % assignees.length],
       status,
       createdAt: new Date(base + i * 6 * 3600 * 1000).toISOString(),
-      lastUpdated: null // Track recently updated tasks
+      updatedAt: new Date(base + i * 6 * 3600 * 1000).toISOString()
     });
   }
   return tasks;
@@ -35,16 +35,21 @@ function seededTasks() {
 
 // Mock API with simulated loading
 async function listTasks() {
-  await new Promise((r) => setTimeout(r, 600));
+  const delay = 400; // Simulate network latency
+  await new Promise((r) => setTimeout(r, delay));
   return seededTasks();
 }
 
-// Mock status update with random failure for demo
+// Mock status update with simulated delay
 async function updateTaskStatus(taskId, newStatus) {
-  await new Promise((r) => setTimeout(r, 400));
-  // Uncomment below to simulate occasional failures
-  // if (Math.random() < 0.15) throw new Error("Update failed. Please try again.");
-  return { success: true };
+  // Simulate network call
+  await new Promise((r) => setTimeout(r, 300));
+  // Random 90% success rate for demo purposes
+  if (Math.random() > 0.1) {
+    return { success: true, status: newStatus };
+  } else {
+    throw new Error("Network error: Failed to update task");
+  }
 }
 
 // State
@@ -57,71 +62,69 @@ const state = {
   page: 1,
   pageSize: 10,
   isLoading: false,
-  error: null,
-  updatingRows: new Set(), // Track rows being updated
-  recentlyUpdated: new Set() // Track rows that need highlight
+  loadError: null,
+  updatingTaskIds: new Set(), // For tracking which rows are updating
+  recentlyUpdatedIds: new Set() // For highlighting
 };
 
 // Elements
 const elQ = document.getElementById("q");
 const elStatus = document.getElementById("status");
 const elReset = document.getElementById("reset");
+const elResetFromEmpty = document.getElementById("resetFromEmpty");
 const elTbody = document.getElementById("tbody");
 const elSummary = document.getElementById("summary");
 const elPageSize = document.getElementById("pageSize");
 const elPrev = document.getElementById("prev");
 const elNext = document.getElementById("next");
 const elPageInfo = document.getElementById("pageInfo");
+
 const elBackdrop = document.getElementById("backdrop");
 const elClose = document.getElementById("close");
-const elModalBody = document.getElementById("modalBody");
-const elErrorMsg = document.getElementById("errorMsg");
-const elLoadingOverlay = document.getElementById("loadingOverlay");
+const elLoadingError = document.getElementById("loadingError");
+const elLoadingIndicator = document.getElementById("loadingIndicator");
 const elEmptyState = document.getElementById("emptyState");
-const elSortIndicator = document.getElementById("sortIndicator");
-const elResetFromEmpty = document.getElementById("resetFromEmpty");
+const elActiveStateIndicators = document.getElementById("activeStateIndicators");
 
-// Utility functions
-function getStatusBadgeClass(status) {
-  if (status === "TODO") return "todo";
-  if (status === "IN_PROGRESS") return "in-progress";
-  if (status === "DONE") return "done";
-  return "";
-}
-
+// Helper: Check if status can transition to next state
 function getNextStatus(currentStatus) {
-  if (currentStatus === "TODO") return "IN_PROGRESS";
-  if (currentStatus === "IN_PROGRESS") return "DONE";
-  if (currentStatus === "DONE") return null; // No transition from DONE
-  return null;
+  const transitions = {
+    "TODO": "IN_PROGRESS",
+    "IN_PROGRESS": "DONE",
+    "DONE": null // Can't transition from DONE
+  };
+  return transitions[currentStatus] || null;
 }
 
-function highlightSearchTerms(text, query) {
+// Helper: Get status badge HTML
+function getStatusBadgeHtml(status) {
+  const classes = {
+    "TODO": "status-todo",
+    "IN_PROGRESS": "status-in-progress",
+    "DONE": "status-done"
+  };
+  const className = classes[status] || "";
+  return `<span class="status-badge ${className}">${status}</span>`;
+}
+
+// Helper: Highlight matching search terms in text
+function highlightText(text, query) {
   if (!query) return text;
+  
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  return text.replace(regex, '<span class="search-highlight">$1</span>');
+  const parts = text.split(regex);
+  
+  return parts
+    .map(part => {
+      if (regex.test(part)) {
+        return `<span class="highlight">${part}</span>`;
+      }
+      return part;
+    })
+    .join('');
 }
 
-function showError(message) {
-  state.error = message;
-  elErrorMsg.textContent = message;
-  elErrorMsg.classList.add("show");
-  setTimeout(() => {
-    elErrorMsg.classList.remove("show");
-    state.error = null;
-  }, 4000);
-}
-
-function updateSortIndicator() {
-  if (state.sortKey && state.sortDir) {
-    elSortIndicator.textContent = `Sorted by ${state.sortKey} (${state.sortDir})`;
-    elSortIndicator.style.display = "inline-block";
-  } else {
-    elSortIndicator.style.display = "none";
-  }
-}
-
-// Derived
+// Derived: Apply query, filter, and sort
 function applyQueryFilterSort() {
   let out = [...state.all];
 
@@ -144,6 +147,25 @@ function applyQueryFilterSort() {
   return out;
 }
 
+// Update active state indicators
+function updateStateIndicators() {
+  let indicators = [];
+  
+  if (state.q.trim()) {
+    indicators.push(`<span class="state-indicator">Search: "${state.q.trim()}"</span>`);
+  }
+  if (state.status !== "ALL") {
+    indicators.push(`<span class="state-indicator">Status: ${state.status}</span>`);
+  }
+  if (state.sortKey) {
+    const dir = state.sortDir === "asc" ? "↑" : "↓";
+    indicators.push(`<span class="state-indicator">Sort: ${state.sortKey} ${dir}</span>`);
+  }
+  
+  elActiveStateIndicators.innerHTML = indicators.join("");
+}
+
+// Main render function
 function render() {
   const full = applyQueryFilterSort();
   const total = full.length;
@@ -155,64 +177,60 @@ function render() {
   const pageItems = full.slice(start, start + state.pageSize);
 
   elSummary.textContent = `${total} item${total !== 1 ? 's' : ''}`;
-  elPageInfo.textContent = total === 0 ? '—' : `Page ${state.page} / ${pageCount}`;
-  updateSortIndicator();
+  elPageInfo.textContent = `Page ${state.page} / ${pageCount}`;
 
   elPrev.disabled = state.page <= 1;
   elNext.disabled = state.page >= pageCount;
 
-  // Show empty state
-  if (total === 0) {
-    elEmptyState.style.display = "block";
+  // Show/hide empty state
+  const hasNoResults = total === 0;
+  if (hasNoResults) {
     elTbody.innerHTML = "";
+    elEmptyState.style.display = "block";
   } else {
     elEmptyState.style.display = "none";
     const q = state.q.trim().toLowerCase();
+    
     elTbody.innerHTML = pageItems
       .map((t) => {
-        const highlightedTitle = highlightSearchTerms(t.title, q);
-        const isUpdating = state.updatingRows.has(t.id);
-        const isRecent = state.recentlyUpdated.has(t.id);
-        const statusBadgeClass = getStatusBadgeClass(t.status);
         const nextStatus = getNextStatus(t.status);
-        const nextStatusText = nextStatus ? `Next: ${nextStatus}` : "Done";
-        const canUpdate = nextStatus !== null && !isUpdating;
+        const isUpdating = state.updatingTaskIds.has(t.id);
+        const isHighlighting = state.recentlyUpdatedIds.has(t.id);
+        const rowClass = isUpdating ? "row-updating" : "";
+        const highlightClass = isHighlighting ? "row-highlight" : "";
+        const titleHtml = q ? highlightText(t.title, q) : t.title;
         
         return `
-          <tr data-id="${t.id}" class="${isRecent ? 'recently-updated' : ''}">
+          <tr data-id="${t.id}" class="${rowClass} ${highlightClass}">
             <td>${t.id}</td>
-            <td>${highlightedTitle}</td>
+            <td>${titleHtml}</td>
             <td>${t.assignee}</td>
-            <td><span class="status-badge ${statusBadgeClass}">${t.status}</span></td>
-            <td>${formatDate(t.createdAt)}</td>
-            <td style="text-align: center;">
-              <div class="row-actions">
-                ${isUpdating 
-                  ? `<div class="row-loading"></div>` 
-                  : `<button 
-                      class="status-update-btn" 
-                      data-id="${t.id}"
-                      ${!canUpdate ? 'disabled' : ''}
-                      type="button"
-                    >${nextStatusText}</button>`
-                }
+            <td>
+              <div class="status-cell">
+                ${getStatusBadgeHtml(t.status)}
+                ${nextStatus ? `<button class="status-action" data-id="${t.id}" data-next="${nextStatus}" ${isUpdating ? 'disabled' : ''}>
+                  ${isUpdating ? '<span class="status-action-loading loading-spinner"></span>' : 'Next'}
+                </button>` : ''}
               </div>
             </td>
+            <td>${formatDate(t.createdAt)}</td>
           </tr>
         `;
       })
       .join("");
   }
+
+  updateStateIndicators();
 }
 
+// Modal Functions
 function openModal(task) {
-  elModalBody.innerHTML = `
-    <div class="kv"><div class="k">Task ID</div><div class="v">${task.id}</div></div>
-    <div class="kv"><div class="k">Title</div><div class="v">${task.title}</div></div>
-    <div class="kv"><div class="k">Assignee</div><div class="v">${task.assignee}</div></div>
-    <div class="kv"><div class="k">Status</div><div class="v"><span class="status-badge ${getStatusBadgeClass(task.status)}">${task.status}</span></div></div>
-    <div class="kv"><div class="k">Created At</div><div class="v">${formatDate(task.createdAt)}</div></div>
-  `;
+  document.getElementById("modalId").textContent = task.id;
+  document.getElementById("modalTitle").textContent = task.title;
+  document.getElementById("modalAssignee").textContent = task.assignee;
+  document.getElementById("modalStatus").innerHTML = getStatusBadgeHtml(task.status);
+  document.getElementById("modalCreatedAt").textContent = formatDate(task.createdAt);
+  
   elBackdrop.style.display = "flex";
 }
 
@@ -220,25 +238,45 @@ function closeModal() {
   elBackdrop.style.display = "none";
 }
 
-async function setLoading(isLoading) {
-  state.isLoading = isLoading;
-  elLoadingOverlay.style.display = isLoading ? "flex" : "none";
+// Init: Load tasks
+async function init() {
+  try {
+    state.isLoading = true;
+    elLoadingError.style.display = "none";
+    elLoadingIndicator.style.display = "block";
+    render();
+
+    state.all = await listTasks();
+    state.isLoading = false;
+    elLoadingIndicator.style.display = "none";
+  } catch (err) {
+    state.isLoading = false;
+    elLoadingError.style.display = "block";
+    elLoadingError.textContent = `Error loading tasks: ${err.message}`;
+    elLoadingIndicator.style.display = "none";
+  }
+
+  render();
 }
 
-// Events
+// Event Listeners
+
+// Search input
 elQ.addEventListener("input", (e) => {
   state.q = e.target.value;
   state.page = 1;
   render();
 });
 
+// Status filter
 elStatus.addEventListener("change", (e) => {
   state.status = e.target.value;
   state.page = 1;
   render();
 });
 
-elReset.addEventListener("click", () => {
+// Reset button
+function handleReset() {
   state.q = "";
   state.status = "ALL";
   state.sortKey = null;
@@ -251,18 +289,19 @@ elReset.addEventListener("click", () => {
   elPageSize.value = "10";
 
   render();
-});
+}
 
-elResetFromEmpty.addEventListener("click", () => {
-  elReset.click();
-});
+elReset.addEventListener("click", handleReset);
+elResetFromEmpty.addEventListener("click", handleReset);
 
+// Page size
 elPageSize.addEventListener("change", (e) => {
   state.pageSize = Number(e.target.value);
   state.page = 1;
   render();
 });
 
+// Pagination
 elPrev.addEventListener("click", () => {
   state.page = Math.max(1, state.page - 1);
   render();
@@ -273,9 +312,52 @@ elNext.addEventListener("click", () => {
   render();
 });
 
-// Click row -> modal (but not on button click)
-elTbody.addEventListener("click", (e) => {
-  if (e.target.closest("button")) return; // Ignore button clicks
+// Click row -> modal
+elTbody.addEventListener("click", async (e) => {
+  // Handle status update button
+  const statusBtn = e.target.closest(".status-action");
+  if (statusBtn) {
+    e.stopPropagation();
+    const taskId = statusBtn.getAttribute("data-id");
+    const nextStatus = statusBtn.getAttribute("data-next");
+    const task = state.all.find((x) => x.id === taskId);
+    
+    if (task && nextStatus) {
+      state.updatingTaskIds.add(taskId);
+      render();
+
+      try {
+        const result = await updateTaskStatus(taskId, nextStatus);
+        task.status = nextStatus;
+        task.updatedAt = new Date().toISOString();
+        
+        // Highlight for 2 seconds
+        state.recentlyUpdatedIds.add(taskId);
+        render();
+        setTimeout(() => {
+          state.recentlyUpdatedIds.delete(taskId);
+          render();
+        }, 2000);
+      } catch (err) {
+        // Show error in row
+        const tr = elTbody.querySelector(`tr[data-id="${taskId}"]`);
+        if (tr) {
+          const errorDiv = document.createElement("div");
+          errorDiv.className = "row-error";
+          errorDiv.textContent = "Update failed: " + err.message;
+          tr.appendChild(errorDiv);
+          
+          setTimeout(() => errorDiv.remove(), 3000);
+        }
+      } finally {
+        state.updatingTaskIds.delete(taskId);
+        render();
+      }
+    }
+    return;
+  }
+
+  // Handle row click for modal
   const tr = e.target.closest("tr");
   if (!tr) return;
   const id = tr.getAttribute("data-id");
@@ -283,43 +365,7 @@ elTbody.addEventListener("click", (e) => {
   if (task) openModal(task);
 });
 
-// Status update buttons
-elTbody.addEventListener("click", async (e) => {
-  if (!e.target.classList.contains("status-update-btn")) return;
-  
-  const taskId = e.target.getAttribute("data-id");
-  const task = state.all.find((t) => t.id === taskId);
-  if (!task) return;
-  
-  const nextStatus = getNextStatus(task.status);
-  if (!nextStatus || state.updatingRows.has(taskId)) return;
-  
-  state.updatingRows.add(taskId);
-  render();
-  
-  try {
-    await updateTaskStatus(taskId, nextStatus);
-    task.status = nextStatus;
-    task.lastUpdated = new Date().toISOString();
-    
-    // Highlight recently updated
-    state.recentlyUpdated.add(taskId);
-    render();
-    
-    // Clear highlight after animation
-    setTimeout(() => {
-      state.recentlyUpdated.delete(taskId);
-      render();
-    }, 1500);
-    
-  } catch (err) {
-    showError(err.message || "Failed to update task status");
-  } finally {
-    state.updatingRows.delete(taskId);
-    render();
-  }
-});
-
+// Close modal
 elClose.addEventListener("click", closeModal);
 elBackdrop.addEventListener("click", (e) => {
   if (e.target === elBackdrop) closeModal();
@@ -343,28 +389,25 @@ document.querySelectorAll("th[data-key]").forEach((th) => {
       } else state.sortDir = "asc";
     }
 
-    state.page = 1;
-    
-    // Update header styles
-    document.querySelectorAll("th[data-key]").forEach((h) => {
-      h.classList.remove("sort-asc", "sort-desc");
+    // Update table header appearance
+    document.querySelectorAll("th").forEach((t) => {
+      t.classList.remove("sort-asc", "sort-desc");
     });
-    if (state.sortDir === "asc") th.classList.add("sort-asc");
-    else if (state.sortDir === "desc") th.classList.add("sort-desc");
-    
+    if (state.sortKey) {
+      th.classList.add(`sort-${state.sortDir}`);
+    }
+
+    state.page = 1;
     render();
   });
 });
 
-// Init
-(async function init() {
-  await setLoading(true);
-  try {
-    state.all = await listTasks();
-    render();
-  } catch (err) {
-    showError("Failed to load tasks");
-  } finally {
-    await setLoading(false);
+// Keyboard support: Escape to close modal
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeModal();
   }
-})();
+});
+
+// Init on page load
+init();
