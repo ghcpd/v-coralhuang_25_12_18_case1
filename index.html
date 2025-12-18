@@ -3,89 +3,651 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Task Dashboard - Baseline Demo</title>
+    <title>Task Dashboard</title>
     <style>
-      body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #f6f7f9; }
-      header { background: #1f2937; color: #fff; padding: 12px 16px; }
-      .container { padding: 16px; max-width: 1100px; margin: 0 auto; }
-      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      input, select, button {
-        height: 34px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 10px;
-        background: #fff; font-size: 14px;
+      * { box-sizing: border-box; }
+      
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        margin: 0; 
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        color: #1a1a1a;
       }
-      button { cursor: pointer; }
-      button:active { transform: translateY(1px); }
-      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
-      th { user-select: none; cursor: pointer; background: #fafafa; }
-      tr:hover { background: #f9fafb; }
-      .muted { color: #6b7280; font-size: 12px; }
-      .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; }
-      .pager button { height: 30px; }
-      .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 12px; background: #fff; }
+      
+      header { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff; 
+        padding: 20px 24px; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      
+      .header-content {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      
+      .header-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0 0 6px 0;
+        letter-spacing: -0.5px;
+      }
+      
+      .header-subtitle {
+        color: rgba(255,255,255,0.8);
+        font-size: 13px;
+        margin: 0;
+      }
+      
+      .main-layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+        min-height: calc(100vh - 100px);
+      }
+      
+      .sidebar {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        height: fit-content;
+        position: sticky;
+        top: 24px;
+      }
+      
+      .sidebar-title {
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #667eea;
+        margin: 0 0 16px 0;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #f0f0f0;
+      }
+      
+      .sidebar-section {
+        margin-bottom: 18px;
+      }
+      
+      .sidebar-section:last-child {
+        margin-bottom: 0;
+      }
+      
+      .sidebar-section-title {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #667eea;
+        margin: 0 0 8px 0;
+        letter-spacing: 0.5px;
+      }
+      
+      .sidebar-text {
+        font-size: 13px;
+        color: #555;
+        line-height: 1.5;
+        margin: 0;
+      }
+      
+      .sidebar-text strong {
+        color: #1a1a1a;
+        display: block;
+        margin-top: 6px;
+        margin-bottom: 4px;
+      }
+      
+      .content-area {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .card { 
+        background: #fff; 
+        border: none;
+        border-radius: 12px; 
+        padding: 20px; 
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        transition: box-shadow 0.2s ease;
+      }
+      
+      .card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      
+      .controls-section {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      
+      .row { 
+        display: flex; 
+        gap: 12px; 
+        flex-wrap: wrap; 
+        align-items: center; 
+      }
+      
+      input, select, button {
+        height: 36px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 0 12px;
+        background: #fff;
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.2s ease;
+      }
+      
+      input:focus, select:focus, button:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      
+      button {
+        cursor: pointer;
+        font-weight: 500;
+        color: #1a1a1a;
+        background: #f3f4f6;
+      }
+      
+      button:hover:not(:disabled) {
+        background: #e5e7eb;
+        border-color: #9ca3af;
+      }
+      
+      button.primary {
+        background: #667eea;
+        color: #fff;
+        border-color: #667eea;
+      }
+      
+      button.primary:hover:not(:disabled) {
+        background: #5568d3;
+        border-color: #5568d3;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      }
+      
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      button:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      
+      input::placeholder {
+        color: #9ca3af;
+      }
+      
+      .search-input {
+        flex: 1;
+        min-width: 240px;
+      }
+      
+      .indicator {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        background: #f0f0f0;
+        color: #666;
+      }
+      
+      .indicator.active {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      
+      .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .status-badge.todo {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      
+      .status-badge.in-progress {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      
+      .status-badge.done {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      
+      /* Loading & Error States */
+      .loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        z-index: 10;
+      }
+      
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .error-message {
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 12px 16px;
+        border-radius: 8px;
+        display: none;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      
+      .error-message.show {
+        display: block;
+        animation: slideIn 0.3s ease;
+      }
+      
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 0;
+      }
+      
+      th, td { 
+        padding: 12px 12px; 
+        border-bottom: 1px solid #e5e7eb; 
+        text-align: left; 
+        font-size: 14px; 
+      }
+      
+      th { 
+        user-select: none; 
+        cursor: pointer; 
+        background: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+        position: relative;
+      }
+      
+      th:hover {
+        background: #f3f4f6;
+      }
+      
+      th::after {
+        content: '';
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-left: 6px;
+        vertical-align: middle;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      
+      th.sort-asc::after {
+        content: '↑';
+        opacity: 1;
+      }
+      
+      th.sort-desc::after {
+        content: '↓';
+        opacity: 1;
+      }
+      
+      tr {
+        transition: background 0.2s ease;
+      }
+      
+      tbody tr:hover { 
+        background: #f9fafb;
+        cursor: pointer;
+      }
+      
+      tbody tr.recently-updated {
+        animation: highlight 1.5s ease;
+      }
+      
+      @keyframes highlight {
+        0%, 100% { background: transparent; }
+        50% { background: #fef3c7; }
+      }
+      
+      .search-highlight {
+        background: #fef3c7;
+        padding: 0 2px;
+        border-radius: 2px;
+        font-weight: 500;
+      }
+      
+      .row-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      
+      .status-update-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        height: 28px;
+        min-width: 60px;
+      }
+      
+      .row-loading {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid #e5e7eb;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+      }
+      
+      .muted { 
+        color: #6b7280; 
+        font-size: 13px;
+      }
+      
+      .pager { 
+        display: flex; 
+        gap: 12px; 
+        align-items: center; 
+        justify-content: flex-end; 
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #e5e7eb;
+      }
+      
+      .pager button { 
+        height: 32px;
+        padding: 0 12px;
+      }
+      
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6b7280;
+      }
+      
+      .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        opacity: 0.3;
+      }
+      
+      .empty-state-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #374151;
+        margin: 0 0 8px 0;
+      }
+      
+      .empty-state-text {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0 0 16px 0;
+      }
 
       /* Modal */
-      .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 16px; }
-      .modal { width: 520px; max-width: 100%; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; }
-      .modal-hd { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content: space-between; align-items:center; }
-      .modal-bd { padding: 14px; }
-      .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 10px; }
-      .k { color:#374151; font-weight: 600; }
-      .v { color:#111827; }
-      .xbtn { border: none; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+      .backdrop { 
+        position: fixed; 
+        inset: 0; 
+        background: rgba(0,0,0,0.45); 
+        display: none; 
+        align-items: center; 
+        justify-content: center; 
+        padding: 16px;
+        z-index: 100;
+        animation: fadeIn 0.2s ease;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      .modal { 
+        width: 520px; 
+        max-width: 100%; 
+        background: #fff; 
+        border-radius: 12px; 
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 20px 25px rgba(0,0,0,0.15);
+        animation: slideUp 0.3s ease;
+      }
+      
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      .modal-hd { 
+        padding: 20px;
+        border-bottom: 1px solid #e5e7eb; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center;
+      }
+      
+      .modal-hd-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0;
+      }
+      
+      .modal-bd { 
+        padding: 20px;
+      }
+      
+      .kv { 
+        display: grid; 
+        grid-template-columns: 120px 1fr; 
+        gap: 12px; 
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      
+      .kv:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+      
+      .k { 
+        color: #667eea;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .v { 
+        color: #1a1a1a;
+        font-weight: 500;
+      }
+      
+      .xbtn { 
+        border: none; 
+        background: transparent; 
+        font-size: 24px; 
+        cursor: pointer; 
+        padding: 4px 8px;
+        color: #9ca3af;
+        transition: color 0.2s;
+      }
+      
+      .xbtn:hover {
+        color: #1a1a1a;
+      }
+      
+      /* Responsive */
+      @media (max-width: 900px) {
+        .main-layout {
+          grid-template-columns: 1fr;
+          gap: 16px;
+          padding: 16px;
+        }
+        
+        .sidebar {
+          position: relative;
+          top: 0;
+        }
+        
+        .controls-section {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        
+        .search-input {
+          width: 100%;
+          min-width: auto;
+        }
+        
+        input, select, button {
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
     <header>
-      <div style="max-width:1100px;margin:0 auto;">
-        <div style="font-size:16px;font-weight:700;">Task Dashboard (Baseline Demo)</div>
-        <div class="muted" style="color:#d1d5db;">List + Search + Filter + Sort + Pagination + Read-only Details</div>
+      <div class="header-content">
+        <p class="header-title">📋 Task Dashboard</p>
+        <p class="header-subtitle">Manage, search, filter, and update your tasks with ease</p>
       </div>
     </header>
 
-    <div class="container">
-      <div class="card">
-        <div class="row">
-          <input id="q" placeholder="Search by title..." style="width:260px;" />
-
-          <select id="status" aria-label="Status filter">
-            <option value="ALL">All Status</option>
-            <option value="TODO">TODO</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="DONE">DONE</option>
-          </select>
-
-          <button id="reset" type="button">Reset</button>
-
-          <span class="pill" id="summary">0 items</span>
-          <span class="muted">Click headers to sort. Click a row to view details.</span>
+    <div class="main-layout">
+      <!-- Sidebar: Usage Guide -->
+      <aside class="sidebar">
+        <h2 class="sidebar-title">Guide</h2>
+        
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">Search Tasks</h3>
+          <p class="sidebar-text">Type in the search box to find tasks by title. Matching keywords are highlighted in yellow.</p>
         </div>
+        
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">Filter & Sort</h3>
+          <p class="sidebar-text"><strong>Filter by Status:</strong> Select from the dropdown (All, TODO, IN_PROGRESS, DONE)</p>
+          <p class="sidebar-text"><strong>Sort:</strong> Click any column header to sort. Click again to reverse. Click once more to clear sorting.</p>
+        </div>
+        
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">Pagination</h3>
+          <p class="sidebar-text">Choose items per page, then use Prev/Next buttons to navigate. Current page is shown on the right.</p>
+        </div>
+        
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">Update Status</h3>
+          <p class="sidebar-text">Click the <strong>Next Status</strong> button on any row to advance: TODO → IN_PROGRESS → DONE. Updated rows briefly highlight in yellow.</p>
+        </div>
+        
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">Reset</h3>
+          <p class="sidebar-text">Click <strong>Reset</strong> to clear all filters, sorts, and search, returning to page 1.</p>
+        </div>
+      </aside>
 
-        <table aria-label="Task table">
-          <thead>
-            <tr>
-              <th data-key="id">Task ID</th>
-              <th data-key="title">Title</th>
-              <th data-key="assignee">Assignee</th>
-              <th data-key="status">Status</th>
-              <th data-key="createdAt">Created At</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+      <!-- Main Content Area -->
+      <div class="content-area">
+        <div class="card">
+          <div class="error-message" id="errorMsg"></div>
+          
+          <div class="controls-section">
+            <input id="q" class="search-input" placeholder="🔍 Search by title..." />
+            
+            <select id="status" aria-label="Status filter">
+              <option value="ALL">All Status</option>
+              <option value="TODO">TODO</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="DONE">DONE</option>
+            </select>
+            
+            <button id="reset" type="button" class="primary">↻ Reset</button>
+            
+            <div style="margin-left: auto; display: flex; gap: 12px; align-items: center;">
+              <span class="indicator" id="summary">0 items</span>
+              <span id="sortIndicator" class="indicator" style="display:none;"></span>
+            </div>
+          </div>
 
-        <div class="pager">
-          <span class="muted">Page size</span>
-          <select id="pageSize" aria-label="Page size">
-            <option value="5">5</option>
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
-          </select>
+          <!-- Table with Loading Overlay -->
+          <div style="position: relative;">
+            <div class="loading-overlay" id="loadingOverlay">
+              <div class="spinner"></div>
+            </div>
+            
+            <table aria-label="Task table">
+              <thead>
+                <tr>
+                  <th data-key="id">Task ID</th>
+                  <th data-key="title">Title</th>
+                  <th data-key="assignee">Assignee</th>
+                  <th data-key="status">Status</th>
+                  <th data-key="createdAt">Created At</th>
+                  <th style="width: 80px; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+            
+            <div class="empty-state" id="emptyState" style="display: none;">
+              <div class="empty-state-icon">📭</div>
+              <h3 class="empty-state-title">No tasks found</h3>
+              <p class="empty-state-text">Try adjusting your search, filter, or sort criteria</p>
+              <button type="button" class="primary" id="resetFromEmpty">↻ Reset All</button>
+            </div>
+          </div>
 
-          <button id="prev" type="button">Prev</button>
-          <span id="pageInfo" class="muted"></span>
-          <button id="next" type="button">Next</button>
+          <div class="pager">
+            <span class="muted">Items per page</span>
+            <select id="pageSize" aria-label="Page size" style="width: 70px;">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+            </select>
+
+            <button id="prev" type="button">← Prev</button>
+            <span id="pageInfo" class="muted"></span>
+            <button id="next" type="button">Next →</button>
+          </div>
         </div>
       </div>
     </div>
@@ -94,7 +656,7 @@
     <div class="backdrop" id="backdrop">
       <div class="modal" role="dialog" aria-modal="true" aria-label="Task details dialog">
         <div class="modal-hd">
-          <div style="font-weight:700;">Task Details</div>
+          <h2 class="modal-hd-title">Task Details</h2>
           <button class="xbtn" id="close" aria-label="Close dialog" type="button">×</button>
         </div>
         <div class="modal-bd" id="modalBody"></div>
