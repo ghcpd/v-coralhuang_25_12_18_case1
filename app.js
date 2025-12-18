@@ -32,9 +32,12 @@ function seededTasks() {
   return tasks;
 }
 
-// "Mock API" (delay only)
-async function listTasks() {
-  await new Promise((r) => setTimeout(r, 80));
+// "Mock API" (delay only). Accepts an options object to allow simulating failures
+let simulateFail = false;
+async function listTasks(opts = {}) {
+  const delay = opts.delay ?? 350;
+  await new Promise((r) => setTimeout(r, delay));
+  if (opts.simulateFail) throw new Error('Simulated load failure');
   return seededTasks();
 }
 
@@ -46,25 +49,39 @@ const state = {
   sortKey: null,
   sortDir: null, // "asc" | "desc" | null
   page: 1,
-  pageSize: 10
+  pageSize: 10,
+  loading: false,
+  loadError: null,
+  rowLoading: {}, // id -> boolean
+  rowError: {}, // id -> message
+  recent: {} // id -> timeoutId
 };
 
 // Elements
 const elQ = document.getElementById("q");
 const elStatus = document.getElementById("status");
 const elReset = document.getElementById("reset");
+const elReload = document.getElementById("reload");
+const elSimFail = document.getElementById("simulateFail");
+const elResetEmpty = document.getElementById("resetEmpty");
+const elActiveFilters = document.getElementById("activeFilters");
 const elTbody = document.getElementById("tbody");
 const elSummary = document.getElementById("summary");
 const elPageSize = document.getElementById("pageSize");
 const elPrev = document.getElementById("prev");
 const elNext = document.getElementById("next");
 const elPageInfo = document.getElementById("pageInfo");
+const elLoadingOverlay = document.getElementById("loadingOverlay");
+const elErrorArea = document.getElementById("errorArea");
+const elEmpty = document.getElementById("emptyState");
+const elLoadMsg = document.getElementById("loadMsg");
 
 const elBackdrop = document.getElementById("backdrop");
 const elClose = document.getElementById("close");
 const elModalBody = document.getElementById("modalBody");
 
 // Derived
+function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function applyQueryFilterSort() {
   let out = [...state.all];
 
@@ -79,7 +96,7 @@ function applyQueryFilterSort() {
     out.sort((a, b) => {
       const va = String(a[k]);
       const vb = String(b[k]);
-      const cmp = va.localeCompare(vb);
+      const cmp = va.localeCompare(vb, undefined, {numeric:true});
       return dir === "asc" ? cmp : -cmp;
     });
   }
@@ -103,19 +120,51 @@ function render() {
   elPrev.disabled = state.page <= 1;
   elNext.disabled = state.page >= pageCount;
 
+  // Active filter chips
+  const chips = [];
+  if (state.q) chips.push(`<span class="chip">Search: "${state.q}"</span>`);
+  if (state.status !== 'ALL') chips.push(`<span class="chip">Status: ${state.status}</span>`);
+  if (state.sortKey) chips.push(`<span class="chip">Sort: ${state.sortKey} ${state.sortDir}</span>`);
+  elActiveFilters.innerHTML = chips.join(' ');
+
+  // Empty state
+  if (total === 0) {
+    elEmpty.style.display = '';
+    elTbody.innerHTML = '';
+    return;
+  } else {
+    elEmpty.style.display = 'none';
+  }
+
+  // Render rows with interactive status UI and search highlights
+  const q = state.q.trim();
+  const re = q ? new RegExp('(' + escapeRegex(q) + ')','ig') : null;
+
   elTbody.innerHTML = pageItems
-    .map(
-      (t) => `
-      <tr data-id="${t.id}">
+    .map((t) => {
+      const title = re ? t.title.replace(re, '<mark>$1</mark>') : t.title;
+      const rowBusy = state.rowLoading[t.id];
+      const rowErr = state.rowError[t.id];
+      const recentClass = state.recent[t.id] ? 'recent-updated' : '';
+
+      const statusClass = `status-${t.status}`;
+      const nextEnabled = t.status !== 'DONE';
+      const statusBtn = `<div style="display:flex;align-items:center"><button data-action="advance" data-id="${t.id}" class="status-btn ${statusClass}" ${rowBusy ? 'disabled' : ''}>${t.status}</button>${rowBusy?'<span style="margin-left:8px" class="muted">Updating…</span>':'<button data-action="advance" data-id="'+t.id+'" class="status-action" title="Advance">›</button>'}</div>`;
+
+      return `
+      <tr data-id="${t.id}" class="${recentClass} ${rowErr? 'row-error':''} ${rowBusy? 'row-loading':''}">
         <td>${t.id}</td>
-        <td>${t.title}</td>
+        <td>${title}</td>
         <td>${t.assignee}</td>
-        <td>${t.status}</td>
+        <td>${statusBtn}${rowErr?'<div style="color:var(--danger);font-size:13px;margin-top:6px">'+rowErr+'</div>':''}</td>
         <td>${formatDate(t.createdAt)}</td>
       </tr>
     `
-    )
+    })
     .join("");
+
+  // ensure headers reflect current sort
+  updateSortHeaders();
 }
 
 function openModal(task) {
@@ -131,6 +180,39 @@ function openModal(task) {
 
 function closeModal() {
   elBackdrop.style.display = "none";
+}
+
+// Helpers: loading & error
+function setLoading(on){ state.loading = on; elLoadingOverlay.style.display = on ? '' : 'none'; elLoadMsg.textContent = on ? 'Loading tasks' : ''; }
+function setLoadError(err){ state.loadError = err; if (err){ elErrorArea.style.display=''; elErrorArea.innerHTML = `<div style="display:flex;gap:12px;align-items:center"><div style="color:var(--danger);font-weight:600">Error:</div><div class="muted">${(err.message||String(err))}</div><div style="margin-left:auto"><button class="retry">Retry</button></div></div>`; } else { elErrorArea.style.display='none'; elErrorArea.textContent=''; } }
+
+// Status transition helper
+function nextStatus(curr){ if (curr === 'TODO') return 'IN_PROGRESS'; if (curr === 'IN_PROGRESS') return 'DONE'; return curr; }
+
+async function updateStatus(id){ if (state.rowLoading[id]) return; const task = state.all.find(t=>t.id===id); if(!task) return;
+  const target = nextStatus(task.status);
+  if(target === task.status) return;
+  state.rowLoading[id] = true; state.rowError[id] = null; render();
+
+  // simulate update API
+  try{
+    await new Promise((r)=>setTimeout(r, 600));
+    // random failure simulation (15% chance)
+    if (Math.random() < 0.15){ throw new Error('Network error updating status'); }
+
+    // success
+    task.status = target;
+    state.rowLoading[id] = false;
+    state.recent[id] = true;
+    // clear recent marker after short duration
+    if (state.recent[id]){ clearTimeout(state.recent[id]); }
+    state.recent[id] = setTimeout(()=>{ delete state.recent[id]; render(); }, 2500);
+    render();
+  }catch(err){
+    state.rowLoading[id] = false; state.rowError[id] = err.message || String(err); render();
+    // clear error after some time and revert
+    setTimeout(()=>{ delete state.rowError[id]; render(); }, 3000);
+  }
 }
 
 // Events
@@ -157,9 +239,15 @@ elReset.addEventListener("click", () => {
   elQ.value = "";
   elStatus.value = "ALL";
   elPageSize.value = "10";
+  elSimFail.checked = false;
 
   render();
 });
+
+elResetEmpty.addEventListener('click', ()=>{ elReset.click(); });
+
+elReload.addEventListener('click', ()=>{ loadTasks(); });
+elSimFail.addEventListener('change', (e)=>{ simulateFail = e.target.checked; });
 
 elPageSize.addEventListener("change", (e) => {
   state.pageSize = Number(e.target.value);
@@ -177,8 +265,11 @@ elNext.addEventListener("click", () => {
   render();
 });
 
-// Click row -> modal
+// Click row -> modal, but avoid opening when status action was clicked
 elTbody.addEventListener("click", (e) => {
+  const actionBtn = e.target.closest('button[data-action]');
+  if (actionBtn){ const id = actionBtn.getAttribute('data-id'); if (actionBtn.getAttribute('data-action') === 'advance'){ updateStatus(id); } return; }
+
   const tr = e.target.closest("tr");
   if (!tr) return;
   const id = tr.getAttribute("data-id");
@@ -191,7 +282,17 @@ elBackdrop.addEventListener("click", (e) => {
   if (e.target === elBackdrop) closeModal();
 });
 
-// Sort by header
+// Sort by header (with visual indicator)
+function updateSortHeaders(){
+  document.querySelectorAll("th[data-key]").forEach((th)=>{
+    const key = th.getAttribute('data-key');
+    if (state.sortKey===key && state.sortDir){
+      th.innerHTML = th.textContent + (state.sortDir==='asc' ? ' ▲' : ' ▼');
+    } else {
+      th.innerHTML = th.textContent.replace(/[▲▼]/g,'').trim();
+    }
+  });
+}
 document.querySelectorAll("th[data-key]").forEach((th) => {
   th.addEventListener("click", () => {
     const key = th.getAttribute("data-key");
@@ -210,12 +311,31 @@ document.querySelectorAll("th[data-key]").forEach((th) => {
     }
 
     state.page = 1;
+    updateSortHeaders();
     render();
   });
 });
 
+
+// Load tasks with UI feedback
+async function loadTasks(){
+  setLoading(true); setLoadError(null);
+  try{
+    const tasks = await listTasks({ simulateFail, delay: 700 });
+    state.all = tasks;
+    setLoading(false);
+    render();
+  }catch(err){
+    setLoading(false);
+    setLoadError(err);
+    render();
+  }
+}
+
+// Retry handler for errors
+elErrorArea.addEventListener('click', (e)=>{ if (e.target && e.target.matches('button.retry')){ loadTasks(); } });
+
 // Init
 (async function init() {
-  state.all = await listTasks();
-  render();
+  loadTasks();
 })();
