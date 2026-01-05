@@ -3,91 +3,547 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Task Dashboard - Baseline Demo</title>
+    <title>Task Dashboard</title>
     <style>
-      body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #f6f7f9; }
-      header { background: #1f2937; color: #fff; padding: 12px 16px; }
-      .container { padding: 16px; max-width: 1100px; margin: 0 auto; }
-      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      input, select, button {
-        height: 34px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 10px;
-        background: #fff; font-size: 14px;
+      /* Reset & Base */
+      * { box-sizing: border-box; }
+      body { 
+        margin: 0; 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        background: #f3f4f6;
+        color: #111827;
       }
-      button { cursor: pointer; }
-      button:active { transform: translateY(1px); }
-      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
-      th { user-select: none; cursor: pointer; background: #fafafa; }
-      tr:hover { background: #f9fafb; }
-      .muted { color: #6b7280; font-size: 12px; }
-      .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; }
-      .pager button { height: 30px; }
-      .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 12px; background: #fff; }
 
-      /* Modal */
-      .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 16px; }
-      .modal { width: 520px; max-width: 100%; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; }
-      .modal-hd { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content: space-between; align-items:center; }
-      .modal-bd { padding: 14px; }
-      .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 10px; }
-      .k { color:#374151; font-weight: 600; }
-      .v { color:#111827; }
-      .xbtn { border: none; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+      /* Layout: Sidebar + Main */
+      .app-wrapper { display: flex; min-height: 100vh; flex-direction: row; }
+      .sidebar { 
+        width: 280px; 
+        background: #fff; 
+        border-right: 1px solid #e5e7eb;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      .main-area { 
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; 
+      }
+
+      /* Header */
+      header { 
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        color: #fff; 
+        padding: 16px 24px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        flex-shrink: 0;
+      }
+      header h1 { 
+        margin: 0; 
+        font-size: 22px; 
+        font-weight: 600;
+        letter-spacing: -0.3px;
+      }
+      header p { 
+        margin: 4px 0 0 0; 
+        font-size: 13px;
+        opacity: 0.9;
+        letter-spacing: 0.2px;
+      }
+
+      /* Main Content */
+      .content { 
+        flex: 1; 
+        padding: 24px; 
+        overflow-y: auto;
+      }
+
+      /* Cards */
+      .card { 
+        background: #fff; 
+        border: 1px solid #e5e7eb; 
+        border-radius: 8px; 
+        padding: 20px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      }
+
+      /* Form Controls */
+      .controls { 
+        display: flex; 
+        gap: 12px; 
+        flex-wrap: wrap; 
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      input, select, button {
+        height: 36px; 
+        border: 1px solid #d1d5db; 
+        border-radius: 6px; 
+        padding: 0 12px;
+        background: #fff; 
+        font-size: 14px;
+        transition: all 0.2s ease;
+        font-family: inherit;
+      }
+      input { flex: 1; min-width: 200px; }
+      input::placeholder { color: #9ca3af; }
+      input:focus, select:focus { 
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      button { 
+        cursor: pointer; 
+        background: #f3f4f6;
+        color: #111827;
+        font-weight: 500;
+        border: 1px solid #d1d5db;
+      }
+      button:hover:not(:disabled) { 
+        background: #e5e7eb;
+        border-color: #9ca3af;
+      }
+      button:active:not(:disabled) { transform: translateY(1px); }
+      button:disabled { 
+        opacity: 0.5; 
+        cursor: not-allowed;
+      }
+      button.btn-primary {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+      }
+      button.btn-primary:hover:not(:disabled) {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+      }
+
+      /* Status Badge */
+      .status-badge { 
+        display: inline-block;
+        padding: 4px 8px; 
+        border-radius: 4px; 
+        font-size: 12px; 
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .status-todo { background: #fef3c7; color: #92400e; }
+      .status-in-progress { background: #dbeafe; color: #0c4a6e; }
+      .status-done { background: #dcfce7; color: #15803d; }
+
+      /* Summary & Info */
+      .summary-row { 
+        display: flex; 
+        gap: 16px; 
+        align-items: center;
+        margin-bottom: 16px;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .pill { 
+        padding: 6px 12px; 
+        border-radius: 999px; 
+        border: 1px solid #d1d5db; 
+        font-size: 12px; 
+        background: #f9fafb;
+        font-weight: 500;
+        color: #374151;
+      }
+      .muted { 
+        color: #6b7280; 
+        font-size: 13px;
+      }
+      .state-indicator {
+        display: inline-block;
+        padding: 0 8px;
+        font-size: 12px;
+        color: #059669;
+        background: #d1fae5;
+        border-radius: 4px;
+      }
+
+      /* Loading Indicator */
+      .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #e5e7eb;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Error Alert */
+      .error-alert {
+        padding: 12px;
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+        color: #991b1b;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: #6b7280;
+      }
+      .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      .empty-state h3 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .empty-state p {
+        margin: 0 0 16px 0;
+        font-size: 13px;
+      }
+
+      /* Table */
+      .table-wrapper { 
+        overflow-x: auto;
+        margin: 0 -20px -20px -20px;
+        border-top: 1px solid #e5e7eb;
+      }
+      table { 
+        width: 100%; 
+        border-collapse: collapse;
+        margin: 0;
+      }
+      th, td { 
+        padding: 12px 20px; 
+        text-align: left; 
+        font-size: 13px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      th { 
+        user-select: none; 
+        cursor: pointer;
+        background: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      th:hover { background: #f3f4f6; }
+      th::after {
+        content: '';
+        display: inline-block;
+        width: 0;
+        height: 0;
+        margin-left: 6px;
+        border: 4px solid transparent;
+        vertical-align: middle;
+      }
+      th.sort-asc::after {
+        border-bottom-color: #2563eb;
+        border-top-color: transparent;
+      }
+      th.sort-desc::after {
+        border-top-color: #2563eb;
+        border-bottom-color: transparent;
+      }
+      
+      tbody tr {
+        transition: background 0.15s ease;
+        cursor: pointer;
+      }
+      tbody tr:hover { 
+        background: #f9fafb;
+      }
+      tbody tr.row-updating {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      tbody tr.row-highlight {
+        animation: highlight-pulse 1.5s ease-out;
+      }
+      @keyframes highlight-pulse {
+        0% { background: #fef08a; }
+        100% { background: transparent; }
+      }
+
+      /* Status Update Cell */
+      .status-cell {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .status-action {
+        padding: 4px 8px;
+        font-size: 11px;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+      .status-action:hover {
+        background: #1d4ed8;
+      }
+      .status-action:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
+      .status-action-loading {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+      }
+      .row-error {
+        font-size: 11px;
+        color: #dc2626;
+        margin-top: 4px;
+      }
+
+      /* Pagination */
+      .pager { 
+        display: flex; 
+        gap: 8px; 
+        align-items: center; 
+        justify-content: flex-end; 
+        margin-top: 20px;
+        flex-wrap: wrap;
+      }
+      .pager button { height: 32px; min-width: 60px; }
+
+      /* Sidebar Styling */
+      .sidebar-section {
+        padding: 0;
+      }
+      .sidebar-header {
+        padding: 16px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+      }
+      .sidebar-header h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+      }
+      .sidebar-content {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+      }
+      .guide-section {
+        margin-bottom: 24px;
+      }
+      .guide-section h4 {
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: #2563eb;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .guide-section p, .guide-section ul {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: #4b5563;
+      }
+      .guide-section ul {
+        list-style: none;
+        padding: 0;
+      }
+      .guide-section li {
+        padding: 4px 0;
+        margin-left: 0;
+      }
+      .guide-section li::before {
+        content: '• ';
+        color: #2563eb;
+        font-weight: 600;
+        margin-right: 4px;
+      }
+      .guide-tip {
+        padding: 8px;
+        background: #f0f9ff;
+        border-left: 3px solid #2563eb;
+        border-radius: 2px;
+        font-size: 11px;
+        color: #0c4a6e;
+        margin-top: 12px;
+      }
+
+      /* Highlight in text */
+      .highlight {
+        background: #fbbf24;
+        color: #78350f;
+        font-weight: 600;
+        padding: 1px 3px;
+        border-radius: 2px;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .app-wrapper { flex-direction: column; }
+        .sidebar { 
+          width: 100%; 
+          border-right: none;
+          border-bottom: 1px solid #e5e7eb;
+          max-height: 200px;
+        }
+        .sidebar-content { max-height: 150px; }
+        .controls { justify-content: flex-start; }
+        input { min-width: 150px; }
+      }
+
+      @media (max-width: 640px) {
+        header { padding: 12px 16px; }
+        header h1 { font-size: 18px; }
+        .content { padding: 12px; }
+        .card { padding: 12px; }
+        th, td { padding: 10px 8px; font-size: 12px; }
+        .controls { gap: 8px; flex-direction: column; }
+        input, select, button { width: 100%; }
+        .pager { flex-direction: column; align-items: stretch; }
+        .pager button { width: 100%; }
+        .status-action { padding: 3px 6px; font-size: 10px; }
+      }
     </style>
   </head>
   <body>
-    <header>
-      <div style="max-width:1100px;margin:0 auto;">
-        <div style="font-size:16px;font-weight:700;">Task Dashboard (Baseline Demo)</div>
-        <div class="muted" style="color:#d1d5db;">List + Search + Filter + Sort + Pagination + Read-only Details</div>
-      </div>
-    </header>
-
-    <div class="container">
-      <div class="card">
-        <div class="row">
-          <input id="q" placeholder="Search by title..." style="width:260px;" />
-
-          <select id="status" aria-label="Status filter">
-            <option value="ALL">All Status</option>
-            <option value="TODO">TODO</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="DONE">DONE</option>
-          </select>
-
-          <button id="reset" type="button">Reset</button>
-
-          <span class="pill" id="summary">0 items</span>
-          <span class="muted">Click headers to sort. Click a row to view details.</span>
+    <div class="app-wrapper">
+      <!-- Sidebar: Usage Guide -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h3>📖 Usage Guide</h3>
         </div>
+        <div class="sidebar-content">
+          <div class="guide-section">
+            <h4>🔍 Search Tasks</h4>
+            <p>Type in the search box to find tasks by title. Matching keywords are highlighted.</p>
+          </div>
 
-        <table aria-label="Task table">
-          <thead>
-            <tr>
-              <th data-key="id">Task ID</th>
-              <th data-key="title">Title</th>
-              <th data-key="assignee">Assignee</th>
-              <th data-key="status">Status</th>
-              <th data-key="createdAt">Created At</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+          <div class="guide-section">
+            <h4>🏷️ Filter & Sort</h4>
+            <ul>
+              <li><strong>Status Filter:</strong> Select to show specific task statuses</li>
+              <li><strong>Sort Headers:</strong> Click any column header to sort (asc/desc/none)</li>
+            </ul>
+          </div>
 
-        <div class="pager">
-          <span class="muted">Page size</span>
-          <select id="pageSize" aria-label="Page size">
-            <option value="5">5</option>
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
-          </select>
+          <div class="guide-section">
+            <h4>📄 Pagination</h4>
+            <p>Navigate through pages and change page size using the controls below the table.</p>
+          </div>
 
-          <button id="prev" type="button">Prev</button>
-          <span id="pageInfo" class="muted"></span>
-          <button id="next" type="button">Next</button>
+          <div class="guide-section">
+            <h4>✅ Update Status</h4>
+            <p>Click the "Next" button in the Status column to advance task status:</p>
+            <ul>
+              <li>TODO → IN_PROGRESS</li>
+              <li>IN_PROGRESS → DONE</li>
+            </ul>
+            <p style="margin-top: 8px; font-style: italic; color: #6b7280;">Tasks will briefly highlight after updates.</p>
+          </div>
+
+          <div class="guide-section">
+            <h4>🔄 Reset View</h4>
+            <p>Click the <strong>Reset</strong> button to clear all filters, sorting, and search.</p>
+          </div>
+
+          <div class="guide-tip">
+            💡 <strong>Tip:</strong> Click any task row to view full details in a modal.
+          </div>
         </div>
-      </div>
+      </aside>
+
+      <!-- Main Area -->
+      <main class="main-area">
+        <header>
+          <h1>Task Dashboard</h1>
+          <p>Manage, search, filter, and update your tasks efficiently</p>
+        </header>
+
+        <div class="content">
+          <div class="card">
+            <!-- Loading Error -->
+            <div id="loadingError" class="error-alert" style="display:none;"></div>
+
+            <!-- Controls -->
+            <div class="controls">
+              <input id="q" type="text" placeholder="Search by title..." />
+              <select id="status" aria-label="Status filter">
+                <option value="ALL">All Status</option>
+                <option value="TODO">TODO</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="DONE">DONE</option>
+              </select>
+              <button id="reset" class="btn-primary" type="button">Reset</button>
+            </div>
+
+            <!-- Summary Row -->
+            <div class="summary-row">
+              <div>
+                <span class="pill" id="summary">0 items</span>
+                <span id="activeStateIndicators" style="margin-left: 12px;"></span>
+              </div>
+              <div id="loadingIndicator" style="display:none;">
+                <span class="loading-spinner"></span>
+                <span class="muted" style="margin-left: 8px;">Loading tasks...</span>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrapper">
+              <table aria-label="Task table">
+                <thead>
+                  <tr>
+                    <th data-key="id">Task ID</th>
+                    <th data-key="title">Title</th>
+                    <th data-key="assignee">Assignee</th>
+                    <th data-key="status">Status</th>
+                    <th data-key="createdAt">Created At</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+              </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">📭</div>
+              <h3>No tasks found</h3>
+              <p>Try adjusting your search or filters</p>
+              <button id="resetFromEmpty" type="button" class="btn-primary">Reset Filters</button>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pager">
+              <span class="muted">Page size</span>
+              <select id="pageSize" aria-label="Page size" style="min-width: 80px;">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+              </select>
+
+              <button id="prev" type="button">← Prev</button>
+              <span id="pageInfo" class="muted"></span>
+              <button id="next" type="button">Next →</button>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
 
     <!-- Modal -->
@@ -97,7 +553,24 @@
           <div style="font-weight:700;">Task Details</div>
           <button class="xbtn" id="close" aria-label="Close dialog" type="button">×</button>
         </div>
-        <div class="modal-bd" id="modalBody"></div>
+        <div class="modal-bd">
+          <div class="kv"><div class="k">Task ID</div><div class="v" id="modalId"></div></div>
+          <div class="kv"><div class="k">Title</div><div class="v" id="modalTitle"></div></div>
+          <div class="kv"><div class="k">Assignee</div><div class="v" id="modalAssignee"></div></div>
+          <div class="kv"><div class="k">Status</div><div class="v" id="modalStatus"></div></div>
+          <div class="kv"><div class="k">Created At</div><div class="v" id="modalCreatedAt"></div></div>
+        </div>
+        <style>
+          .modal-hd { padding: 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content: space-between; align-items:center; }
+          .modal-bd { padding: 16px; max-height: 70vh; overflow-y: auto; }
+          .kv { display: grid; grid-template-columns: 120px 1fr; gap: 12px; margin-bottom: 12px; }
+          .k { color:#374151; font-weight: 600; font-size: 13px; }
+          .v { color:#111827; font-size: 13px; }
+          .modal { width: 520px; max-width: 100%; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+          .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+          .xbtn { border: none; background: transparent; font-size: 24px; cursor: pointer; padding: 0; color: #6b7280; transition: color 0.2s; }
+          .xbtn:hover { color: #111827; }
+        </style>
       </div>
     </div>
 
