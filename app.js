@@ -32,10 +32,18 @@ function seededTasks() {
   return tasks;
 }
 
-// "Mock API" (delay only)
-async function listTasks() {
-  await new Promise((r) => setTimeout(r, 80));
+// "Mock API" (delay + simulated failures)
+async function listTasks({ failChance = 0.08, delay = 420 } = {}) {
+  await new Promise((r) => setTimeout(r, delay));
+  if (Math.random() < failChance) throw new Error('Simulated network error');
   return seededTasks();
+}
+
+// Simulated update API for inline status updates
+async function updateTaskStatusMock(taskId, nextStatus, { delay = 650, failChance = 0.12 } = {}) {
+  await new Promise((r) => setTimeout(r, delay));
+  if (Math.random() < failChance) throw new Error('Update failed');
+  return { id: taskId, status: nextStatus, updatedAt: new Date().toISOString() };
 }
 
 // State
@@ -46,7 +54,9 @@ const state = {
   sortKey: null,
   sortDir: null, // "asc" | "desc" | null
   page: 1,
-  pageSize: 10
+  pageSize: 10,
+  loading: false,
+  error: null
 };
 
 // Elements
@@ -64,6 +74,17 @@ const elBackdrop = document.getElementById("backdrop");
 const elClose = document.getElementById("close");
 const elModalBody = document.getElementById("modalBody");
 
+// new elements
+const elBanner = document.getElementById('bannerArea');
+const elBannerText = document.getElementById('bannerText');
+const elBannerAction = document.getElementById('bannerAction');
+const elBannerMeta = document.getElementById('bannerMeta');
+const elRefresh = document.getElementById('refresh');
+const elActive = document.getElementById('activeFilters');
+const elEmpty = document.getElementById('emptyState');
+const elEmptyReset = document.getElementById('emptyReset');
+const elEmptyRefresh = document.getElementById('emptyRefresh');
+
 // Derived
 function applyQueryFilterSort() {
   let out = [...state.all];
@@ -79,13 +100,22 @@ function applyQueryFilterSort() {
     out.sort((a, b) => {
       const va = String(a[k]);
       const vb = String(b[k]);
-      const cmp = va.localeCompare(vb);
+      const cmp = va.localeCompare(vb, undefined, { numeric: true });
       return dir === "asc" ? cmp : -cmp;
     });
   }
 
   return out;
 }
+
+function highlight(text, q) {
+  if (!q) return escapeHtml(text);
+  const re = new RegExp(`(${escapeRegExp(q)})`, 'ig');
+  return escapeHtml(text).replace(re, '<mark>$1</mark>');
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
 function render() {
   const full = applyQueryFilterSort();
@@ -103,26 +133,72 @@ function render() {
   elPrev.disabled = state.page <= 1;
   elNext.disabled = state.page >= pageCount;
 
-  elTbody.innerHTML = pageItems
-    .map(
-      (t) => `
-      <tr data-id="${t.id}">
-        <td>${t.id}</td>
-        <td>${t.title}</td>
-        <td>${t.assignee}</td>
-        <td>${t.status}</td>
-        <td>${formatDate(t.createdAt)}</td>
-      </tr>
-    `
-    )
-    .join("");
+  // active filters
+  const active = [];
+  if (state.q.trim()) active.push({ t: 'Search', v: state.q });
+  if (state.status !== 'ALL') active.push({ t: 'Status', v: state.status });
+  if (state.sortKey) active.push({ t: 'Sort', v: `${state.sortKey} ${state.sortDir}` });
+  elActive.innerHTML = active.length ? active.map(a => `<span class="pill" title="${a.t}"><strong style="margin-right:6px;color:var(--muted)">${a.t}:</strong> ${escapeHtml(a.v)}</span>`).join('') : '<span class="muted">No active filters</span>';
+
+  // banner (loading / error)
+  if (state.loading) {
+    elBanner.style.display = 'flex';
+    elBannerText.textContent = 'Loading tasks — please wait';
+    elBannerAction.innerHTML = '<div class="loading-bar" style="width:64px"></div>';
+    elBannerMeta.textContent = 'Live demo';
+  } else if (state.error) {
+    elBanner.style.display = 'flex';
+    elBannerText.innerHTML = `<span class="error">${escapeHtml(state.error)}</span>`;
+    elBannerAction.innerHTML = '<button id="bannerRetry" class="btn-ghost tiny">Retry</button>';
+    elBannerMeta.textContent = '';
+    // attach retry
+    setTimeout(()=>{ const b=document.getElementById('bannerRetry'); if(b) b.addEventListener('click', () => fetchAndRender()); }, 20);
+  } else {
+    elBanner.style.display = 'none';
+  }
+
+  // table rows
+  if (!pageItems.length) {
+    elTbody.innerHTML = '';
+    elEmpty.style.display = 'block';
+  } else {
+    elEmpty.style.display = 'none';
+    elTbody.innerHTML = pageItems
+      .map((t) => {
+        const title = highlight(t.title, state.q);
+        const updating = t._updating ? `<span class="spinner" aria-hidden="true"></span>` : '';
+        const statusClass = t.status === 'TODO' ? 's-todo' : t.status === 'IN_PROGRESS' ? 's-ing' : 's-done';
+        const statusAction = `<button class="status-action" data-id="${t.id}" ${t._updating? 'disabled': ''}>${t.status}${t._updating? ' ' + updating : ''}</button>`;
+        const recent = t._recent ? ' recent' : '';
+        const err = t._error ? `<div style="color:var(--danger);font-size:12px;margin-top:6px">${escapeHtml(t._error)}</div>` : '';
+        return `
+          <tr class="interactive${recent}" data-id="${t.id}">
+            <td style="white-space:nowrap">${t.id}</td>
+            <td><div style="max-width:520px">${title}</div></td>
+            <td>${escapeHtml(t.assignee || '')}</td>
+            <td class="status"><div style="display:flex;gap:8px;align-items:center"><div class="status-pill ${statusClass}">${statusAction}</div>${err}</div></td>
+            <td style="white-space:nowrap">${formatDate(t.createdAt)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
+  // sorting indicators
+  document.querySelectorAll('th[data-key]').forEach(th => {
+    const k = th.getAttribute('data-key');
+    const s = th.querySelector('.sort');
+    if (!s) return;
+    if (state.sortKey === k) s.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+    else s.textContent = '';
+  });
 }
 
 function openModal(task) {
   elModalBody.innerHTML = `
     <div class="kv"><div class="k">Task ID</div><div class="v">${task.id}</div></div>
-    <div class="kv"><div class="k">Title</div><div class="v">${task.title}</div></div>
-    <div class="kv"><div class="k">Assignee</div><div class="v">${task.assignee}</div></div>
+    <div class="kv"><div class="k">Title</div><div class="v">${escapeHtml(task.title)}</div></div>
+    <div class="kv"><div class="k">Assignee</div><div class="v">${escapeHtml(task.assignee)}</div></div>
     <div class="kv"><div class="k">Status</div><div class="v">${task.status}</div></div>
     <div class="kv"><div class="k">Created At</div><div class="v">${formatDate(task.createdAt)}</div></div>
   `;
@@ -153,6 +229,7 @@ elReset.addEventListener("click", () => {
   state.sortDir = null;
   state.page = 1;
   state.pageSize = 10;
+  state.error = null;
 
   elQ.value = "";
   elStatus.value = "ALL";
@@ -182,6 +259,14 @@ elTbody.addEventListener("click", (e) => {
   const tr = e.target.closest("tr");
   if (!tr) return;
   const id = tr.getAttribute("data-id");
+  // status click
+  const statusBtn = e.target.closest('.status-action');
+  if (statusBtn) {
+    const tid = statusBtn.getAttribute('data-id');
+    handleStatusClick(tid);
+    return;
+  }
+
   const task = state.all.find((x) => x.id === id);
   if (task) openModal(task);
 });
@@ -214,8 +299,63 @@ document.querySelectorAll("th[data-key]").forEach((th) => {
   });
 });
 
+// status transitions: TODO -> IN_PROGRESS -> DONE
+function nextStatus(current){
+  if (current === 'TODO') return 'IN_PROGRESS';
+  if (current === 'IN_PROGRESS') return 'DONE';
+  return 'DONE';
+}
+
+async function handleStatusClick(id){
+  const task = state.all.find(t => t.id === id);
+  if (!task) return;
+  if (task._updating) return; // prevent duplicate
+  const from = task.status;
+  const to = nextStatus(from);
+  if (from === to) return;
+
+  // optimistic UI: mark updating
+  task._updating = true;
+  task._error = null;
+  render();
+
+  try {
+    const res = await updateTaskStatusMock(id, to);
+    // apply
+    task.status = res.status;
+    task._updating = false;
+    task._recent = true;
+    // clear recent after a short time
+    setTimeout(() => { task._recent = false; render(); }, 1600);
+    render();
+  } catch (err) {
+    task._updating = false;
+    task._error = err && err.message ? err.message : 'Failed to update';
+    render();
+    // revert error after a bit
+    setTimeout(() => { task._error = null; render(); }, 2400);
+  }
+}
+
+// refresh / fetch handling
+async function fetchAndRender(){
+  state.loading = true; state.error = null; render();
+  try {
+    const rows = await listTasks();
+    // keep small per-row state (don't wipe UI flags if ids match)
+    const old = Object.fromEntries((state.all||[]).map(t=>[t.id,t]));
+    state.all = rows.map(r => Object.assign({}, r, old[r.id] ? { _recent: old[r.id]._recent } : {}));
+    state.loading = false; state.error = null; render();
+  } catch (err) {
+    state.loading = false; state.error = err && err.message ? err.message : 'Unknown error'; render();
+  }
+}
+
+elRefresh.addEventListener('click', () => fetchAndRender());
+elEmptyReset.addEventListener('click', () => { elReset.click(); });
+elEmptyRefresh.addEventListener('click', () => fetchAndRender());
+
 // Init
 (async function init() {
-  state.all = await listTasks();
-  render();
+  await fetchAndRender();
 })();
